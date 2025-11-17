@@ -4,15 +4,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flame/game.dart';
 import 'game/my_game.dart';
 
-// void main() {
-//   runApp(
-//     GameWidget<MyGame>(
-//       game: MyGame(),
-//     ),
-//   );
-// }
-
-
 Future<void> main() async {  // Thêm async và Future
   WidgetsFlutterBinding.ensureInitialized();
 
