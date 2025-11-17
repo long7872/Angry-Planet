@@ -1,91 +1,104 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flame/game.dart';
+import 'game/my_game.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
-
-  // YOUR SUPABASE INFO
-  final supabaseUrl = dotenv.env['SUPABASE_URL']!;
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
-
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
+void main() {
+  runApp(
+    GameWidget<MyGame>(
+      game: MyGame(),
+    ),
   );
-
-  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+// Test Supabase
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Supabase Test App',
-      home: const TestAPIPage(),
-    );
-  }
-}
+// void main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
 
-class TestAPIPage extends StatefulWidget {
-  const TestAPIPage({super.key});
+//   // Load environment variables
+//   await dotenv.load(fileName: ".env");
 
-  @override
-  State<TestAPIPage> createState() => _TestAPIPageState();
-}
+//   // YOUR SUPABASE INFO
+//   final supabaseUrl = dotenv.env['SUPABASE_URL']!;
+//   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
-class _TestAPIPageState extends State<TestAPIPage> {
-  final supabase = Supabase.instance.client;
-  String result = "Press the button to test API";
+//   await Supabase.initialize(
+//     url: supabaseUrl,
+//     anonKey: supabaseAnonKey,
+//   );
 
-  Future<void> testSupabase() async {
-    try {
-      // INSERT example
-      await supabase.from('test_table').insert({
-        'name': 'Flutter Test',
-        'created_at': DateTime.now().toIso8601String(),
-      });
+//   runApp(const MyApp());
+// }
 
-      // SELECT example
-      final response = await supabase.from('test_table').select();
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
 
-      setState(() {
-        result = response.toString();
-      });
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       title: 'Supabase Test App',
+//       home: const TestAPIPage(),
+//     );
+//   }
+// }
 
-      print(response);
+// class TestAPIPage extends StatefulWidget {
+//   const TestAPIPage({super.key});
 
-    } catch (e) {
-      setState(() {
-        result = "Error: $e";
-      });
-      print("Supabase error: $e");
-    }
-  }
+//   @override
+//   State<TestAPIPage> createState() => _TestAPIPageState();
+// }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Supabase API Tester')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(result, textAlign: TextAlign.center),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: testSupabase,
-        child: const Icon(Icons.cloud),
-      ),
-    );
-  }
-}
+// class _TestAPIPageState extends State<TestAPIPage> {
+//   final supabase = Supabase.instance.client;
+//   String result = "Press the button to test API";
 
+//   Future<void> testSupabase() async {
+//     try {
+//       // INSERT example
+//       await supabase.from('test_table').insert({
+//         'name': 'Flutter Test',
+//         'created_at': DateTime.now().toIso8601String(),
+//       });
+
+//       // SELECT example
+//       final response = await supabase.from('test_table').select();
+
+//       setState(() {
+//         result = response.toString();
+//       });
+
+//       print(response);
+
+//     } catch (e) {
+//       setState(() {
+//         result = "Error: $e";
+//       });
+//       print("Supabase error: $e");
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Supabase API Tester')),
+//       body: Center(
+//         child: Padding(
+//           padding: const EdgeInsets.all(16),
+//           child: Text(result, textAlign: TextAlign.center),
+//         ),
+//       ),
+//       floatingActionButton: FloatingActionButton(
+//         onPressed: testSupabase,
+//         child: const Icon(Icons.cloud),
+//       ),
+//     );
+//   }
+// }
+
+// Init
 
 // void main() {
 //   runApp(const MyApp());
