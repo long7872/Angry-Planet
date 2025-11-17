@@ -4,13 +4,49 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flame/game.dart';
 import 'game/my_game.dart';
 
-void main() {
+// void main() {
+//   runApp(
+//     GameWidget<MyGame>(
+//       game: MyGame(),
+//     ),
+//   );
+// }
+
+
+Future<void> main() async {  // Thêm async và Future
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  // YOUR SUPABASE INFO
+  final supabaseUrl = dotenv.env['SUPABASE_URL']!;
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
+
   runApp(
-    GameWidget<MyGame>(
-      game: MyGame(),
-    ),
+    GameWidget(game: MyGame()),
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Test Supabase
 

@@ -1,28 +1,27 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
-import 'package:flame/palette.dart';  // ← Thêm import này cho BasicPalette
+import 'package:flame/palette.dart';
 import 'package:flutter/material.dart';
 import 'player.dart';
 
-class MyGame extends FlameGame {  // ← Không cần mixin nào cả
+class MyGame extends FlameGame {
   late Player player;
   late JoystickComponent joystick;
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
+    print('Game size: x=${size.x}, y=${size.y}');  // Debug screen size
 
-    // 1. Tạo nhân vật (giữ nguyên)
     player = Player()
       ..position = Vector2(size.x / 2, size.y / 2)
       ..anchor = Anchor.center;
 
     add(player);
 
-    // 2. Tạo joystick (không cần DragCallbacks - nó tự handle drag)
-    final knobPaint = BasicPalette.blue.withAlpha(200).paint();  // Màu xanh đậm cho knob
-    final backgroundPaint = BasicPalette.blue.withAlpha(100).paint();  // Màu xanh nhạt cho background
+    final knobPaint = BasicPalette.blue.withAlpha(200).paint();
+    final backgroundPaint = BasicPalette.blue.withAlpha(100).paint();
 
     joystick = JoystickComponent(
       knob: CircleComponent(radius: 30, paint: knobPaint),
@@ -30,23 +29,34 @@ class MyGame extends FlameGame {  // ← Không cần mixin nào cả
       margin: const EdgeInsets.only(left: 40, bottom: 40),
     );
 
-    // Add joystick vào viewport (HUD layer) để nó luôn ở trên cùng
     camera.viewport.add(joystick);
   }
 
-  static const double speed = 50; // pixel/giây
+  static const double speed = 200;
 
   @override
   void update(double dt) {
     super.update(dt);
 
-    // Di chuyển nhân vật theo joystick (giữ nguyên logic)
     if (joystick.direction != Vector2.zero()) {
-      final delta = joystick.delta * speed * dt;  // delta = direction * intensity
+      final delta = joystick.delta * speed * dt;
+      print('Joystick delta: ${delta.x.toStringAsFixed(1)}, ${delta.y.toStringAsFixed(1)}');  // Giữ debug
+
       player.position += delta;
 
-      // Giới hạn không cho ra khỏi màn hình
-      player.position.clamp(Vector2.zero(), Vector2(size.x, size.y));
+      // Clamp sau +=, nhưng detect move trước clamp
+      final preClampPos = player.position.clone();  // Clone pos trước clamp
+      final moveDistance = preClampPos.distanceTo(player.position - delta);  // Distance từ pos cũ (trước +=)
+
+      // Trigger gửi nếu intent move (delta hoặc distance > ngưỡng)
+      if (moveDistance > 0.5 || delta.length > 1.0) {  // Detect intent, dù clamp
+        print("Move intent detected! Pre-clamp distance: ${moveDistance.toStringAsFixed(2)}");
+        player.sendPositionUpdate();  // Gọi hàm gửi từ player (thêm method này)
+      }
+
+      // Clamp sau
+      final playerHalfSize = player.size / 2;
+      player.position.clamp(playerHalfSize, size - playerHalfSize);
     }
   }
 }
