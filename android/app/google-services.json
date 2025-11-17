@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "683053684468",
+    "project_id": "the-angry-planet",
+    "storage_bucket": "the-angry-planet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:683053684468:android:ad161711a554d532f2f0a1",
+        "android_client_info": {
+          "package_name": "com.example.angry_planet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyZ6s8_AUXmJNxLhOSd8BvIdOoyncyGLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
