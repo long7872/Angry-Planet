@@ -40,6 +40,7 @@ dependencies:
     flutter_dotenv: ^6.0.0
     supabase_flutter: ^2.10.3
     logger: ^2.6.2
+    fast_noise: ^2.0.0
 
 dev_dependencies:
     flutter_test:
