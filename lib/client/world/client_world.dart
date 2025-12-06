@@ -1,9 +1,13 @@
 import 'package:flame/components.dart';
 import '../../server/world/chunk.dart';
 import '../render/chunk_renderer.dart';
+import '../render/sprite_manager.dart';
 
 class ClientWorld extends World {
   final Map<String, ChunkRenderer> _renderedChunks = {};
+  final SpriteManager spriteManager;
+
+  ClientWorld({required this.spriteManager});
 
   /// Add chunk to be rendered
   void addChunk(Chunk chunk) {
@@ -11,7 +15,10 @@ class ClientWorld extends World {
     
     if (_renderedChunks.containsKey(key)) return;
 
-    final renderer = ChunkRenderer(chunk);
+    final renderer = ChunkRenderer(
+      chunk: chunk,
+      spriteManager: spriteManager,
+    );
     add(renderer);
     _renderedChunks[key] = renderer;
   }

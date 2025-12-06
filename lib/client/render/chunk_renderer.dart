@@ -2,16 +2,20 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../../server/world/chunk.dart';
 import '../../shared/tile_type.dart';
-import 'tile_colors.dart';
+import 'sprite_manager.dart';
 
 class ChunkRenderer extends Component {
   static const double tileSize = 16.0; // pixels per tile
 
   final Chunk chunk;
+  final SpriteManager spriteManager;
   final Paint _paint = Paint();
   final Paint _resourcePaint = Paint();
 
-  ChunkRenderer(this.chunk);
+  ChunkRenderer({
+    required this.chunk,
+    required this.spriteManager,
+  });
 
   @override
   void render(Canvas canvas) {
@@ -22,31 +26,34 @@ class ChunkRenderer extends Component {
       for (int tx = 0; tx < Chunk.size; tx++) {
         final tile = chunk.tiles[ty * Chunk.size + tx];
 
-        // Draw biome
-        _paint.color = TileColors.getBiome(tile.biome);
-        
-        final rect = Rect.fromLTWH(
+        final position = Vector2(
           worldX + tx * tileSize,
           worldY + ty * tileSize,
-          tileSize,
-          tileSize,
         );
-        
-        canvas.drawRect(rect, _paint);
 
-        // Draw resource if present
+        // Draw biome
+        final biomeSprite = spriteManager.getBiomeSprite(tile.biome);
+        if (biomeSprite != null) {
+          biomeSprite.render(
+            canvas,
+            position: position,
+            size: Vector2.all(tileSize),
+          );
+        }
+        
+        // Draw resource with correct state
         if (tile.resource != ResourceType.none) {
-          final resourceColor = TileColors.getResource(tile.resource);
-          if (resourceColor != null) {
-            _resourcePaint.color = resourceColor;
-            
-            // Draw small circle in center
-            final center = Offset(
-              worldX + tx * tileSize + tileSize / 2,
-              worldY + ty * tileSize + tileSize / 2,
+          final resourceSprite = spriteManager.getResourceSprite(
+            tile.resource,
+            tile.resourceState,
+          );
+          
+          if (resourceSprite != null) {
+            resourceSprite.render(
+              canvas,
+              position: position,
+              size: Vector2.all(tileSize),
             );
-            
-            canvas.drawCircle(center, tileSize * 0.3, _resourcePaint);
           }
         }
       }

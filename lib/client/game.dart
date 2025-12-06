@@ -5,6 +5,7 @@ import 'network/ws_client.dart';
 import 'world/client_world.dart';
 import 'camera/camera_controller.dart';
 import 'managers/chunk_loader.dart';
+import 'render/sprite_manager.dart';
 
 class AngryPlanetGame extends FlameGame {
   late final ClientSocket socket;
@@ -12,13 +13,18 @@ class AngryPlanetGame extends FlameGame {
   late final CameraController cameraController;
   late final ChunkLoader chunkLoader;
   late final JoystickComponent joystick;
+  late final SpriteManager spriteManager;
 
   AngryPlanetGame(this.socket);
 
   @override
   Future<void> onLoad() async {
-    // Create world
-    cworld = ClientWorld();
+    // Load sprites
+    spriteManager = SpriteManager();
+    await spriteManager.loadAll(this);
+
+    // Create world with sprite manager
+    cworld = ClientWorld(spriteManager: spriteManager);
     
     // Setup camera - IMPORTANT: use world property
     camera = CameraComponent.withFixedResolution(

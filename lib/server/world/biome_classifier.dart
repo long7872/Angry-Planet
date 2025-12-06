@@ -31,10 +31,10 @@ class BiomeClassifier {
 
   /// Classify biome based on height
   static BiomeType classify(double height) {
-    if (height < -0.6) return BiomeType.water;
-    if (height < -0.3) return BiomeType.sand;
-    if (height < -0.1) return BiomeType.grass;
-    if (height < 0.2) return BiomeType.tree;
+    if (height < -0.3) return BiomeType.water;
+    if (height < -0.1) return BiomeType.sand;
+    if (height < 0.0) return BiomeType.grass;
+    if (height < 0.3) return BiomeType.tree;
     return BiomeType.stone;
   }
 
