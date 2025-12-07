@@ -8,6 +8,17 @@ class Chunk {
 
   Chunk(this.cx, this.cy, this.tiles);
 
+  /// Get tile at local position (returns null if out of bounds)
+  TileData? getTileLocal(int tx, int ty) {
+    if (tx < 0 || tx >= size || ty < 0 || ty >= size) return null;
+    return tiles[ty * size + tx];
+  }
+
+  /// Get tile at index
+  TileData getTileAt(int index) {
+    return tiles[index];
+  }
+
   Map<String, dynamic> toJson() => {
     "cx": cx,
     "cy": cy,

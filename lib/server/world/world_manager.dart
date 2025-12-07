@@ -27,8 +27,25 @@ class WorldManager {
         // Determine biome
         final biome = BiomeClassifier.classify(h);
 
+        bool isEdge = false;
+        // Sample 4 neighbors
+        final radius = 2;
+        final hN = noise.getHeight(wx.toDouble(), (wy - radius).toDouble());
+        final hS = noise.getHeight(wx.toDouble(), (wy + radius).toDouble());
+        final hW = noise.getHeight((wx - radius).toDouble(), wy.toDouble());
+        final hE = noise.getHeight((wx + radius).toDouble(), wy.toDouble());
+
+        // Compare biomes
+        if (BiomeClassifier.classify(hN) != biome) isEdge = true;
+        if (BiomeClassifier.classify(hS) != biome) isEdge = true;
+        if (BiomeClassifier.classify(hW) != biome) isEdge = true;
+        if (BiomeClassifier.classify(hE) != biome) isEdge = true;
+
+        ResourceType resource = ResourceType.none;
         // Determine resource (pass int coords for seeding)
-        final resource = BiomeClassifier.getResource(biome, d, wx, wy);
+        if (!isEdge) {
+          resource = BiomeClassifier.getResource(biome, d, wx, wy);
+        }
 
         tiles.add(TileData(biome: biome, resource: resource));
       }

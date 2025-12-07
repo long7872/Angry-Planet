@@ -1,10 +1,20 @@
 // Biomes
 enum BiomeType {
-  water,
-  sand,
-  grass,
-  tree,
-  stone,
+  water,   // Priority 0
+  sand,    // Priority 1
+  grass,   // Priority 2
+  tree,    // Priority 3
+  stone,   // Priority 4
+}
+
+// Extension to get biome priority
+extension BiomePriority on BiomeType {
+  int get priority => index; // Uses enum index as priority
+  
+  /// Check if this biome should draw transition to neighbor
+  bool shouldDrawTransitionTo(BiomeType neighbor) {
+    return priority < neighbor.priority;
+  }
 }
 
 // Resources
@@ -23,6 +33,34 @@ enum ResourceState {
   damaged2,    // 2 - 50% health  
   damaged3,    // 3 - 25% health
   breaking,    // 4 - About to break
+}
+
+// 8 Directions for transitions
+enum Direction {
+  n,   // North
+  ne,  // Northeast
+  e,   // East
+  se,  // Southeast
+  s,   // South
+  sw,  // Southwest
+  w,   // West
+  nw,  // Northwest
+}
+
+// Helper to get offset for direction
+extension DirectionOffset on Direction {
+  (int dx, int dy) get offset {
+    switch (this) {
+      case Direction.n:  return (0, -1);
+      case Direction.ne: return (1, -1);
+      case Direction.e:  return (1, 0);
+      case Direction.se: return (1, 1);
+      case Direction.s:  return (0, 1);
+      case Direction.sw: return (-1, 1);
+      case Direction.w:  return (-1, 0);
+      case Direction.nw: return (-1, -1);
+    }
+  }
 }
 
 class TileData {
