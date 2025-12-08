@@ -18,12 +18,14 @@ class ChunkRenderer extends Component {
   ChunkRenderer({
     required this.chunk,
     required this.spriteManager,
-  });
+  }) : super(priority: 0);
 
   @override
   void onMount() {
     super.onMount();
+    print("🎨 ChunkRenderer mounted for chunk (${chunk.cx},${chunk.cy})");
     _buildCache();
+    print("✅ Cache built with ${_cache.length} render ops");
   }
 
   void _buildCache() {
@@ -102,6 +104,25 @@ class ChunkRenderer extends Component {
         size: Vector2.all(tileSize),
       );
     }
+    
+    // Debug: Draw chunk boundary in red
+    final debugPaint = Paint()
+      ..color = Colors.red.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    
+    final worldX = chunk.cx * Chunk.size * tileSize;
+    final worldY = chunk.cy * Chunk.size * tileSize;
+    
+    canvas.drawRect(
+      Rect.fromLTWH(
+        worldX,
+        worldY,
+        Chunk.size * tileSize,
+        Chunk.size * tileSize,
+      ),
+      debugPaint,
+    );
   }
 
   void invalidate() {

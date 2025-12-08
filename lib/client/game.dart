@@ -6,6 +6,9 @@ import 'world/client_world.dart';
 import 'camera/camera_controller.dart';
 import 'managers/chunk_loader.dart';
 import 'render/sprite_manager.dart';
+import 'player/player_component.dart';
+import 'input/player_input_handler.dart';
+import '../shared/player_data.dart';
 
 class AngryPlanetGame extends FlameGame {
   late final ClientSocket socket;
@@ -14,6 +17,10 @@ class AngryPlanetGame extends FlameGame {
   late final ChunkLoader chunkLoader;
   late final JoystickComponent joystick;
   late final SpriteManager spriteManager;
+  
+  // Player components
+  late final PlayerComponent localPlayer;
+  late final PlayerInputHandler inputHandler;
 
   AngryPlanetGame(this.socket);
 
@@ -54,21 +61,44 @@ class AngryPlanetGame extends FlameGame {
     );
     await camera.viewport.add(joystick);
 
-    // Camera controller
+    // Create local player at origin
+    final playerData = PlayerData(
+      id: 'local',
+      x: 0,
+      y: 0,
+      name: 'You',
+    );
+    localPlayer = PlayerComponent(
+      data: playerData,
+      game: this,
+      speed: 2.0,
+    );
+    await cworld.add(localPlayer);  // Add player to world
+
+    // Create input handler (connects joystick to player)
+    inputHandler = PlayerInputHandler(
+      joystick: joystick,
+      player: localPlayer,
+    );
+    await add(inputHandler);
+
+    // Camera controller (now follows player)
     cameraController = CameraController(
       camera: camera,
       joystick: joystick,
       moveSpeed: 8.0,
     );
-    add(cameraController);
+    cameraController.setTarget(localPlayer);  // Set camera to follow player
+    await add(cameraController);
 
-    // Chunk loader
+    // Chunk loader (now uses player position)
     chunkLoader = ChunkLoader(
-      socket: socket,
-      world: cworld,
+      wsClient: socket,  // Your socket variable
+      clientWorld: cworld,  // Your cworld variable
       camera: camera,
+      playerPosition: () => localPlayer.position,  // Add player position
     );
-    add(chunkLoader);
+    await add(chunkLoader);
 
     print("✅ Game loaded! Joystick ready, chunks loading...");
   }

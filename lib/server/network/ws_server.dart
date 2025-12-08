@@ -21,12 +21,16 @@ class AngryPlanetServer {
             final cy = msg["cy"];
             final chunk = world.generateChunk(cx, cy);
 
+            // ✓ Changed "chunk" to "data" to match client expectation
             socket.add(jsonEncode({
               "type": "chunk_data",
-              "chunk": chunk.toJson(),
+              "data": chunk.toJson(),  // ✓ FIXED: Changed from "chunk" to "data"
             }));
+            
+            print("✅ Sent chunk ($cx, $cy) to client");
           }
-          // In ws_server.dart, add debug command
+          
+          // Debug command
           if (msg["type"] == "debug_biomes") {
             final stats = <String, int>{};
             

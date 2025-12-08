@@ -9,18 +9,32 @@ class ClientWorld extends World {
 
   ClientWorld({required this.spriteManager});
 
+  @override
+  void onMount() {
+    super.onMount();
+    print("🌍 ClientWorld mounted! Parent: ${parent?.runtimeType}");
+  }
+
   /// Add chunk to be rendered
   void addChunk(Chunk chunk) {
     final key = "${chunk.cx},${chunk.cy}";
     
-    if (_renderedChunks.containsKey(key)) return;
+    if (_renderedChunks.containsKey(key)) {
+      print("⚠️ Chunk $key already exists");
+      return;
+    }
 
+    print("➕ Adding chunk $key to ClientWorld");
+    
     final renderer = ChunkRenderer(
       chunk: chunk,
       spriteManager: spriteManager,
     );
+    
     add(renderer);
     _renderedChunks[key] = renderer;
+    
+    print("✅ Chunk $key added (total chunks: ${_renderedChunks.length})");
   }
 
   /// Remove chunk from rendering

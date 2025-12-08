@@ -1,4 +1,4 @@
-import 'net/ws_server.dart';
+import 'network/ws_server.dart';
 
 Future<void> runIntegratedServer() async {
   final server = AngryPlanetServer();
