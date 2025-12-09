@@ -18,7 +18,9 @@ class ChunkRenderer extends Component {
   ChunkRenderer({
     required this.chunk,
     required this.spriteManager,
-  }) : super(priority: 0);
+  }) : super(
+    priority: 0
+  );
 
   @override
   void onMount() {

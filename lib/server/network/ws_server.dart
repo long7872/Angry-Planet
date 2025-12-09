@@ -1,54 +1,125 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import '../world/world_manager.dart';
-import '../../shared/tile_type.dart';
+import '../../shared/network_messages.dart';
+
+class ServerPlayer {
+  final String id;
+  final String name;
+  final WebSocket socket;
+  double x = 0;
+  double y = 0;
+  String direction = 'down';
+  String state = 'idle';
+
+  ServerPlayer(this.id, this.name, this.socket);
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'x': x,
+    'y': y,
+    'direction': direction,
+    'state': state,
+  };
+}
 
 class AngryPlanetServer {
   final world = WorldManager(12345);
+  final Map<String, ServerPlayer> _players = {};
+  int _nextPlayerId = 0;
 
   Future<void> start() async {
     final http = await HttpServer.bind(InternetAddress.loopbackIPv4, 3333);
-    print("Server running at ws://127.0.0.1:3333/ws");
+    print("🌍 Server running at ws://127.0.0.1:3333/ws");
 
     await for (var req in http) {
       if (req.uri.path == '/ws') {
         final socket = await WebSocketTransformer.upgrade(req);
-        socket.listen((data) {
-          final msg = jsonDecode(data);
+        _handleClient(socket);
+      }
+    }
+  }
 
-          if (msg["type"] == "get_chunk") {
-            final cx = msg["cx"];
-            final cy = msg["cy"];
-            final chunk = world.generateChunk(cx, cy);
+  void _handleClient(WebSocket socket) {
+    final playerId = 'player_${_nextPlayerId++}';
+    final playerName = 'Player ${_nextPlayerId}';
+    
+    final player = ServerPlayer(playerId, playerName, socket);
+    _players[playerId] = player;
+    
+    print("👤 $playerName joined (${_players.length} players)");
 
-            // ✓ Changed "chunk" to "data" to match client expectation
-            socket.add(jsonEncode({
-              "type": "chunk_data",
-              "data": chunk.toJson(),  // ✓ FIXED: Changed from "chunk" to "data"
-            }));
-            
-            print("✅ Sent chunk ($cx, $cy) to client");
-          }
+    // Send player their ID
+    socket.add(jsonEncode({
+      'type': NetworkMessage.playerJoined,
+      'id': playerId,
+      'name': playerName,
+    }));
+
+    // Send existing players
+    for (final p in _players.values) {
+      if (p.id != playerId) {
+        socket.add(jsonEncode({
+          'type': NetworkMessage.positionSync,
+          'players': [p.toJson()],
+        }));
+      }
+    }
+
+    socket.listen(
+      (data) {
+        final msg = jsonDecode(data);
+
+        if (msg['type'] == NetworkMessage.getChunk) {
+          final cx = msg['cx'];
+          final cy = msg['cy'];
+          final chunk = world.generateChunk(cx, cy);
+          socket.add(jsonEncode({
+            'type': NetworkMessage.chunkData,
+            'data': chunk.toJson(),
+          }));
+        } 
+        else if (msg['type'] == NetworkMessage.playerUpdate) {
+          // Update player position
+          player.x = (msg['x'] as num).toDouble();
+          player.y = (msg['y'] as num).toDouble();
+          player.direction = msg['direction'];
+          player.state = msg['state'];
           
-          // Debug command
-          if (msg["type"] == "debug_biomes") {
-            final stats = <String, int>{};
-            
-            for (int cy = -2; cy < 2; cy++) {
-              for (int cx = -2; cx < 2; cx++) {
-                final chunk = world.generateChunk(cx, cy);
-                for (var tile in chunk.tiles) {
-                  stats[tile.biome.name] = (stats[tile.biome.name] ?? 0) + 1;
-                  if (tile.resource != ResourceType.none) {
-                    stats[tile.resource.name] = (stats[tile.resource.name] ?? 0) + 1;
-                  }
-                }
-              }
-            }
-            
-            socket.add(jsonEncode({"type": "debug", "stats": stats}));
-          }
-        });
+          // Broadcast to all other players
+          _broadcastPlayerUpdate(playerId);
+        }
+      },
+      onDone: () {
+        _players.remove(playerId);
+        print("👋 $playerName left (${_players.length} players)");
+      },
+      onError: (e) {
+        print("❌ Error for $playerName: $e");
+        _players.remove(playerId);
+      },
+    );
+  }
+
+  void _broadcastPlayerUpdate(String updatedPlayerId) {
+    final player = _players[updatedPlayerId];
+    if (player == null) return;
+
+    final message = jsonEncode({
+      'type': NetworkMessage.positionSync,
+      'players': [player.toJson()],
+    });
+
+    // Send to all OTHER players
+    for (final p in _players.values) {
+      if (p.id != updatedPlayerId) {
+        try {
+          p.socket.add(message);
+        } catch (e) {
+          print("❌ Error broadcasting to ${p.name}: $e");
+        }
       }
     }
   }

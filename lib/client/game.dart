@@ -1,6 +1,8 @@
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'managers/multiplayer_manager.dart';
+import 'managers/position_sync.dart';
 import 'network/ws_client.dart';
 import 'world/client_world.dart';
 import 'camera/camera_controller.dart';
@@ -63,7 +65,7 @@ class AngryPlanetGame extends FlameGame {
 
     // Create local player at origin
     final playerData = PlayerData(
-      id: 'local',
+      id: 'local2',
       x: 0,
       y: 0,
       name: 'You',
@@ -81,6 +83,21 @@ class AngryPlanetGame extends FlameGame {
       player: localPlayer,
     );
     await add(inputHandler);
+
+    // Position sync
+    final positionSync = PositionSync(
+      player: localPlayer,
+      socket: socket,
+    );
+    await add(positionSync);
+
+    // Multiplayer manager
+    final multiplayerManager = MultiplayerManager(
+      socket: socket,
+      world: cworld,
+      game: this,
+    );
+    await add(multiplayerManager);
 
     // Camera controller (now follows player)
     cameraController = CameraController(
