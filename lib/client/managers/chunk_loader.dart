@@ -1,5 +1,4 @@
 import 'package:flame/components.dart';
-import 'dart:async';
 import 'dart:convert';
 
 import '../network/ws_client.dart';

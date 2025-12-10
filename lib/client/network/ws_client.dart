@@ -54,7 +54,7 @@ class ClientSocket {
   /// Send message to server (generic)
   void send(String message) {
     if (_isConnected && _socket != null) {
-      print("📤 Sending: ${message.substring(0, message.length > 100 ? 100 : message.length)}");
+      // print("📤 Sending: ${message.substring(0, message.length > 100 ? 100 : message.length)}");
       _socket!.add(message);
     } else {
       print("⚠️ Cannot send message: not connected");

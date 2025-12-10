@@ -37,6 +37,12 @@ class ClientWorld extends World {
     print("✅ Chunk $key added (total chunks: ${_renderedChunks.length})");
   }
 
+  Chunk? getChunk(int cx, int cy) {
+    final key = "$cx,$cy";
+    final renderer = _renderedChunks[key];
+    return renderer?.chunk; // Access actual chunk data
+  }
+
   /// Remove chunk from rendering
   void removeChunk(int cx, int cy) {
     final key = "$cx,$cy";
