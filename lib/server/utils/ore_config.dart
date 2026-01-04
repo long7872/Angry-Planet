@@ -1,4 +1,4 @@
-import '../../shared/tile_type.dart';
+import '../../shared/resources/resource_type.dart';
 
 /// Configuration for ore spawning
 class OreConfig {

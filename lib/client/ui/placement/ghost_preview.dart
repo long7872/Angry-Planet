@@ -1,18 +1,18 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import '../../../shared/items/item_type.dart';
-import '../../../shared/items/item_definition.dart';
+import '../../../shared/machines/machine_type.dart';
 
+/// Ghost preview for machine placement
 class GhostPreview extends PositionComponent {
-  final ItemType itemType;
+  final MachineType machineType; 
   final Vector2 tilePosition;
   final FlameGame game;
   
   late Sprite ghostSprite;
 
   GhostPreview({
-    required this.itemType,
+    required this.machineType,
     required this.tilePosition,
     required this.game,
   }) : super(
@@ -24,13 +24,25 @@ class GhostPreview extends PositionComponent {
 
   @override
   Future<void> onLoad() async {
-    final itemDef = getItemDefinition(itemType);
-    final image = await game.images.load(itemDef.spritePath);
-    ghostSprite = Sprite(image);
+    
+    try {
+      final image = await game.images.load('items/${machineType.name}.png');
+      ghostSprite = Sprite(image);
+    } catch (e) {
+      // Fallback to placeholder
+      try {
+        final image = await game.images.load('items/placeholder.png');
+        ghostSprite = Sprite(image);
+      } catch (e2) {
+        // Create colored rectangle as last resort
+        print('⚠️ Could not load sprite for ${machineType.name}');
+      }
+    }
   }
 
   @override
   void render(Canvas canvas) {
+    
     // Draw at 30% opacity with slight tint
     final paint = Paint()
       ..color = Colors.white.withOpacity(0.3)

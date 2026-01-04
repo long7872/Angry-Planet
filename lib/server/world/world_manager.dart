@@ -1,3 +1,4 @@
+import '../../shared/resources/resource_type.dart';
 import 'chunk.dart';
 import 'noise_generator.dart';
 import 'biome_classifier.dart';

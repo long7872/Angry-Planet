@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../../server/world/chunk.dart';
+import '../../shared/resources/resource_type.dart';
 import '../../shared/tile_type.dart';
 import '../../shared/autotile_config.dart';
 import 'sprite_manager.dart';

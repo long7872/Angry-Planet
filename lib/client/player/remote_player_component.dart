@@ -23,7 +23,7 @@ class RemotePlayerComponent extends PositionComponent {
           position: Vector2(initialState.x, initialState.y),
           size: Vector2.all(playerSize),
           anchor: Anchor.center,
-          priority: 5,
+          priority: 99,
         );
 
   @override

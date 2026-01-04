@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
+import '../../shared/resources/resource_type.dart';
 import '../../shared/tile_type.dart';
 
 class SpriteManager {
@@ -103,7 +104,7 @@ class SpriteManager {
       ResourceState.intact: await game.loadSprite('resources/energy_catalyst/intact.png'),
     };
 
-    resourceSprites[ResourceType.forest] = {
+    resourceSprites[ResourceType.wood] = {
       ResourceState.intact: await game.loadSprite('resources/forest/intact.png'),
     };
   }

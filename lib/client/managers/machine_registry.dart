@@ -1,44 +1,84 @@
 import 'package:flame/components.dart';
-import '../components/placed_item.dart';
+import '../../shared/machines/machine_type.dart';
+import '../../shared/game/game_manager.dart';
+import '../components/machines/base_machine.dart';
 
-/// Tracks all placed machines on the map to prevent overlapping placement
+/// Tracks all placed machines on the map
 class MachineRegistry extends Component {
-  // Map of "tileX,tileY" → PlacedItemComponent
-  final Map<String, PlacedItemComponent> _placedMachines = {};
+  final Map<String, BaseMachine> _placedMachines = {};
+  final GameManager gameManager;
 
-  /// Register a new machine at a tile position
-  void registerMachine(Vector2 tilePos, PlacedItemComponent machine) {
-    final key = _tileKey(tilePos);
-    _placedMachines[key] = machine;
-    print("🏭 Registered ${machine.itemType.name} at $tilePos");
+  MachineRegistry({required this.gameManager});
+
+  @override
+  Future<void> onLoad() async {
+    // Register self with game manager
+    gameManager.registerMachineRegistry(this);
   }
 
-  /// Remove a machine from a tile position
+  /// Register a new machine
+  void registerMachine(Vector2 tilePos, BaseMachine machine) {
+    final key = _tileKey(tilePos);
+    _placedMachines[key] = machine;
+    
+    // Register with game manager (energy + pollution)
+    gameManager.registerMachine(machine);
+    
+    print('🏭 Registered ${machine.machineType.displayName} at $tilePos (ID: ${machine.machineId})');
+  }
+
+  /// Unregister machine
   void unregisterMachine(Vector2 tilePos) {
     final key = _tileKey(tilePos);
     final machine = _placedMachines.remove(key);
     if (machine != null) {
-      print("🗑️ Unregistered ${machine.itemType.name} from $tilePos");
+      // Unregister from game manager
+      gameManager.unregisterMachine(machine);
+      print('🗑️ Unregistered ${machine.machineType.displayName} from $tilePos');
     }
   }
 
-  /// Check if a machine already exists at this tile
+  /// Check if machine exists at tile
   bool hasMachineAt(Vector2 tilePos) {
     return _placedMachines.containsKey(_tileKey(tilePos));
   }
 
-  /// Get the machine at a specific tile (if any)
-  PlacedItemComponent? getMachineAt(Vector2 tilePos) {
+  /// Get machine at tile
+  BaseMachine? getMachineAt(Vector2 tilePos) {
     return _placedMachines[_tileKey(tilePos)];
   }
 
-  /// Get all placed machines
-  List<PlacedItemComponent> getAllMachines() {
+  /// Get all machines
+  List<BaseMachine> getAllMachines() {
     return _placedMachines.values.toList();
   }
 
-  /// Clear all machines
+  /// Get machines by type
+  List<BaseMachine> getMachinesByType(MachineType type) {
+    return _placedMachines.values
+        .where((m) => m.machineType == type)
+        .toList();
+  }
+
+  /// Tick all machines
+  void tickAllMachines() {
+    for (final machine in _placedMachines.values) {
+      // Update powered state from energy node
+      if (machine.energyNode != null) {
+        machine.isPowered = machine.energyNode!.isPowered;
+      }
+      
+      // Tick the machine
+      machine.tick();
+    }
+  }
+
+  /// Clear all
   void clear() {
+    // Unregister all machines
+    for (final machine in _placedMachines.values) {
+      gameManager.unregisterMachine(machine);
+    }
     _placedMachines.clear();
   }
 

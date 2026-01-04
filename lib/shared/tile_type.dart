@@ -1,3 +1,5 @@
+import 'resources/resource_type.dart';
+
 // Biomes
 enum BiomeType {
   water,   // Priority 0
@@ -15,15 +17,6 @@ extension BiomePriority on BiomeType {
   bool shouldDrawTransitionTo(BiomeType neighbor) {
     return priority < neighbor.priority;
   }
-}
-
-// Resources
-enum ResourceType {
-  none,
-  coal,
-  iron,
-  energyCatalyst,
-  forest, // trees on tree biome
 }
 
 // Resource health states

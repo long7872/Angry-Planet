@@ -1,4 +1,4 @@
-import '../tile_type.dart';
+import '../resources/resource_type.dart';
 import 'item_type.dart';
 
 class ItemDefinition {
@@ -44,7 +44,7 @@ const Map<ItemType, ItemDefinition> itemDefinitions = {
     spritePath: 'items/wood_harvester.png',
     isPlaceable: true,
     validResources: [
-      ResourceType.forest,
+      ResourceType.wood,
     ],
     description: 'Harvests wood from forests',
   ),

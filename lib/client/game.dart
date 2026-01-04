@@ -3,17 +3,20 @@ import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../shared/inventory/inventory.dart';
-import '../shared/items/item_definition.dart';
-import '../shared/items/item_type.dart';
+import '../shared/machines/machine_type.dart';
+import '../shared/resources/resource_type.dart';
+import '../shared/game/game_manager.dart';
+import 'managers/machine_interaction_manager.dart';
+import 'managers/placement_state_manager.dart';
 import 'managers/machine_registry.dart';
 import 'managers/multiplayer_manager.dart';
-import 'managers/placement_state_manager.dart';
 import 'managers/position_sync.dart';
 import 'network/ws_client.dart';
 import 'ui/overlays/hud_overlay.dart';
 import 'ui/overlays/inventory_overlay.dart';
-import 'ui/overlays/item_selection_row.dart';
-import 'ui/overlays/selected_item_indicator.dart';
+import 'ui/overlays/machine_selection_row.dart';
+import 'ui/overlays/machine_ui_overlay.dart';
+import 'ui/overlays/selected_machine_indicator.dart';
 import 'ui/overlays/tile_debug_overlay.dart';
 import 'world/client_world.dart';
 import 'camera/camera_controller.dart';
@@ -31,10 +34,12 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final JoystickComponent joystick;
   late final SpriteManager spriteManager;
 
-  // Add these properties to AngryPlanetGame class
-  late PlacementStateManager placementManager;
-  late Inventory inventory;
-  late MachineRegistry machineRegistry;
+  // Game systems
+  late final GameManager gameManager;
+  late final PlacementStateManager placementManager;
+  late final Inventory inventory;
+  late final MachineRegistry machineRegistry;
+  late final MachineInteractionManager machineInteractionManager;
   
   // Player components
   late final PlayerComponent localPlayer;
@@ -51,16 +56,16 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     // Create world with sprite manager
     cworld = ClientWorld(spriteManager: spriteManager);
     
-    // Setup camera - IMPORTANT: use world property
+    // Setup camera
     camera = CameraComponent.withFixedResolution(
       width: 800,
       height: 600,
-      world: cworld,  // ← Connect world to camera
+      world: cworld,
     );
     camera.viewfinder.anchor = Anchor.center;
 
     // Add world to game tree
-    await camera.viewport.add(cworld);  // ← CRITICAL: Add world to game!
+    await camera.viewport.add(cworld);
 
     // Create joystick
     joystick = JoystickComponent(
@@ -81,7 +86,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
 
     // Create local player at origin
     final playerData = PlayerData(
-      id: 'local2',
+      id: 'local',
       x: 0,
       y: 0,
       name: 'You',
@@ -91,9 +96,9 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       game: this,
       speed: 2.0,
     );
-    await cworld.add(localPlayer);  // Add player to world
+    await cworld.add(localPlayer);
 
-    // Create input handler (connects joystick to player)
+    // Create input handler
     inputHandler = PlayerInputHandler(
       joystick: joystick,
       player: localPlayer,
@@ -115,57 +120,77 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     );
     await add(multiplayerManager);
 
-    // Camera controller (now follows player)
+    // Camera controller
     cameraController = CameraController(
       camera: camera,
       joystick: joystick,
       moveSpeed: 8.0,
     );
-    cameraController.setTarget(localPlayer);  // Set camera to follow player
+    cameraController.setTarget(localPlayer);
     await add(cameraController);
 
-    // Chunk loader (now uses player position)
+    // Chunk loader
     chunkLoader = ChunkLoader(
-      wsClient: socket,  // Your socket variable
-      clientWorld: cworld,  // Your cworld variable
+      wsClient: socket,
+      clientWorld: cworld,
       camera: camera,
-      playerPosition: () => localPlayer.position,  // Add player position
+      playerPosition: () => localPlayer.position,
     );
     await add(chunkLoader);
 
-    print("✅ Game loaded! Joystick ready, chunks loading...");
+    // ✓ Initialize game manager
+    gameManager = GameManager();
+    await add(gameManager);
 
-    // Initialize inventory with test items
-    inventory = Inventory();
-    inventory.add(ItemType.drill, 5);
-    inventory.add(ItemType.woodHarvester, 5);
-    inventory.add(ItemType.furnace, 3);
-    inventory.add(ItemType.conveyor, 10);
-    inventory.add(ItemType.storage, 2);
+    // ✓ Initialize inventory with starting resources
+    inventory = Inventory(
+      maxSlots: 50,        // 50 different item types
+      maxStackSize: 200,   // 999 per stack (each resource type)
+    );
+    _giveStartingResources();
 
-    // ✓ Initialize machine registry
-    machineRegistry = MachineRegistry();
+    // ✓ Initialize machine registry (with game manager)
+    machineRegistry = MachineRegistry(gameManager: gameManager);
     await add(machineRegistry);
 
-    // Initialize placement system (with registry)
+    // ✓ Initialize placement system
     placementManager = PlacementStateManager(
       world: cworld,
       inventory: inventory,
       game: this,
-      machineRegistry: machineRegistry,  // ✓ Pass registry
+      machineRegistry: machineRegistry,
     );
     await add(placementManager);
 
-    // Add placement input handler
-    // placementInputHandler = PlacementInputHandler(
-    //   placementManager: placementManager,
-    //   camera: camera,
-    // );
-    // await camera.viewport.add(placementInputHandler);
-
-    // await add(placementInputHandler);
+    // ✓ Initialize machine interaction manager
+    machineInteractionManager = MachineInteractionManager(
+      game: this,
+      world: cworld,
+    );
+    await add(machineInteractionManager);
 
     // Register overlays
+    _registerOverlays();
+
+    // Show HUD by default
+    overlays.add('hud');
+
+    print("✅ Game loaded with all systems!");
+  }
+
+  void _giveStartingResources() {
+    // Give player starting resources for building
+    inventory.addResource(ResourceType.wood, 200);
+    inventory.addResource(ResourceType.iron, 20);
+    inventory.addResource(ResourceType.ironBar, 100);
+    inventory.addResource(ResourceType.energyCatalyst, 40);
+    inventory.addResource(ResourceType.energyCube, 40);
+    inventory.addResource(ResourceType.coal, 100);  // For burner
+    
+    print("🎁 Starting resources added to inventory");
+  }
+
+  void _registerOverlays() {
     overlays.addEntry('hud', (context, game) {
       return HudOverlay(
         onBaloPressed: () => placementManager.openInventory(),
@@ -191,26 +216,24 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       );
     });
 
-    overlays.addEntry('item_row', (context, game) {
-      return ItemSelectionRow(
-        placeableItems: getPlaceableItems(),
+    overlays.addEntry('machine_row', (context, game) {
+      return MachineSelectionRow(
+        placeableMachines: MachineType.values,
         inventory: inventory,
-        onItemSelected: (type) => placementManager.selectItem(type),
-        onClose: () => {placementManager.exitItemMode(), game.overlays.remove('tile_debug')}
+        onMachineSelected: (type) => placementManager.selectMachine(type),
+        onClose: () {
+          placementManager.exitItemMode();
+          game.overlays.remove('tile_debug');
+        },
       );
     });
 
-    overlays.addEntry('selected_item_indicator', (context, game) {
-      // Check if any valid tiles exist
-      // final hasValidTiles = placementManager.getHighlighters()
-      //     .where((h) => h.isValid)
-      //     .isNotEmpty;
-      
-      return SelectedItemIndicator(
-        selectedItem: placementManager.selectedItem!,
-        hasValidTilesNotifier: placementManager.hasValidTilesNotifier,  // ✓ Pass notifier
-        validTileCountNotifier: placementManager.validTileCountNotifier,  // ✓ Pass notifier
-        onFindStone: () {
+    overlays.addEntry('selected_machine_indicator', (context, game) {
+      return SelectedMachineIndicator(
+        selectedMachine: placementManager.selectedMachine!,
+        hasValidTilesNotifier: placementManager.hasValidTilesNotifier,
+        validTileCountNotifier: placementManager.validTileCountNotifier,
+        onFindResource: () {
           placementManager.teleportToNearestValidBiome();
         },
         onCancel: () {
@@ -233,27 +256,67 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       );
     });
 
-    // Show HUD by default
-    overlays.add('hud');
+    // ✓ NEW: Machine UI overlay
+    overlays.addEntry('machine_ui', (context, game) {
+      final machine = machineInteractionManager.selectedMachine;
+      if (machine == null) return SizedBox.shrink();
 
-    print("✅ Game loaded with placement system!");
+      return MachineUIOverlay(
+        machine: machine,
+        playerInventory: inventory,
+        machineRegistry: machineRegistry,
+        onClose: () => machineInteractionManager.closeMachineUI(),
+        onTakeFromOutput: (resource, amount) {
+          // Take from machine output to player inventory
+          // if (machine.outputStorage.removeResource(resource, amount)) {
+          //   inventory.addResource(resource, amount);
+          //   return true;
+          // }
+          // return false;
+          if (machine.takeFromOutput(resource, amount)) {
+            inventory.addResource(resource, amount);
+            return true;
+          }
+          return false;
+        },
+        onAddToInput: (resource, amount) {
+          // Add from player inventory to machine input
+          if (inventory.removeResource(resource, amount)) {
+            if (machine.addToInput(resource, amount)) {
+              return true;
+            } else {
+              // Rollback if machine input full
+              inventory.addResource(resource, amount);
+              return false;
+            }
+          }
+          return false;
+        },
+      );
+    });
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    
+    // ✓ Update game manager (ticks machines, energy, pollution)
+    gameManager.update(dt);
   }
 
   @override
   void onTapDown(TapDownEvent event) {
     super.onTapDown(event);
     
-    print("👆 Game tap at: ${event.localPosition}");
-    
-    if (placementManager.currentState != PlacementState.itemSelected) {
-      print("⚠️ State: ${placementManager.currentState}");
+    // Priority 1: Placement mode
+    if (placementManager.currentState == PlacementState.itemSelected) {
+      final worldPos = camera.globalToLocal(event.localPosition);
+      placementManager.selectTile(worldPos);
       return;
     }
 
-    final worldPos = camera.globalToLocal(event.localPosition);
-
-    print("🌍 World: $worldPos → Tile: (${(worldPos.x / 16).floor()}, ${(worldPos.y / 16).floor()})");
-    
-    placementManager.selectTile(worldPos);
+    // Priority 2: Machine interaction (when not in placement mode)
+    // Let machine interaction manager handle it
+    machineInteractionManager.onTapDown(event);
   }
 }

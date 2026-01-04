@@ -1,35 +1,36 @@
 import 'package:flutter/material.dart';
-import '../../../shared/items/item_type.dart';
-import '../../../shared/items/item_definition.dart';
+import '../../../shared/machines/machine_type.dart';
+import '../../../shared/machines/machine_stats.dart';
+import '../../../shared/resources/resource_type.dart';
 import '../../utils/icon_data.dart';
 
-class SelectedItemIndicator extends StatelessWidget {
-  final ItemType selectedItem;
-  final ValueNotifier<bool> hasValidTilesNotifier;  // ✓ Changed to ValueNotifier
-  final ValueNotifier<int> validTileCountNotifier;  // ✓ NEW
-  final VoidCallback? onFindStone;
+class SelectedMachineIndicator extends StatelessWidget {  // ✓ Renamed class
+  final MachineType selectedMachine;
+  final ValueNotifier<bool> hasValidTilesNotifier;
+  final ValueNotifier<int> validTileCountNotifier;
+  final VoidCallback? onFindResource;
   final VoidCallback? onCancel;
 
-  const SelectedItemIndicator({
+  const SelectedMachineIndicator({  // ✓ Renamed constructor
     Key? key,
-    required this.selectedItem,
-    required this.hasValidTilesNotifier,  // ✓ Changed
-    required this.validTileCountNotifier,  // ✓ NEW
-    this.onFindStone,
+    required this.selectedMachine,
+    required this.hasValidTilesNotifier,
+    required this.validTileCountNotifier,
+    this.onFindResource,
     this.onCancel,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final itemDef = getItemDefinition(selectedItem);
+    final stats = getMachineStats(selectedMachine);
 
-    return ValueListenableBuilder<bool>(  // ✓ Wrap in ValueListenableBuilder
+    return ValueListenableBuilder<bool>(
       valueListenable: hasValidTilesNotifier,
       builder: (context, hasValidTiles, child) {
-        return ValueListenableBuilder<int>(  // ✓ Nested for count
+        return ValueListenableBuilder<int>(
           valueListenable: validTileCountNotifier,
           builder: (context, validCount, child) {
-            print("🔧 Selected Item Indicator rebuilt. Item: ${itemDef.name}, ValidTiles: $hasValidTiles, Count: $validCount");
+            print('🔧 Selected Machine Indicator rebuilt. Machine: ${stats.type.displayName}, ValidTiles: $hasValidTiles, Count: $validCount');
             
             return Positioned(
               top: 20,
@@ -52,7 +53,7 @@ class SelectedItemIndicator extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          getItemIcon(selectedItem),
+                          getMachineIcon(selectedMachine),
                           size: 30,
                           color: Colors.white,
                         ),
@@ -62,7 +63,7 @@ class SelectedItemIndicator extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              itemDef.name,
+                              stats.type.displayName,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -71,7 +72,7 @@ class SelectedItemIndicator extends StatelessWidget {
                             ),
                             Text(
                               hasValidTiles 
-                                  ? 'Tap yellow tile ($validCount nearby)'  // ✓ Show count
+                                  ? 'Tap yellow tile ($validCount nearby)'
                                   : 'No valid tiles nearby!',
                               style: TextStyle(
                                 color: hasValidTiles ? Colors.white70 : Colors.red.shade300,
@@ -107,7 +108,7 @@ class SelectedItemIndicator extends StatelessWidget {
                     if (!hasValidTiles) ...[
                       SizedBox(height: 8),
                       Text(
-                        'Needs: ${itemDef.validResources.map((r) => r.name).join(', ')}',
+                        'Needs: ${stats.validPlacements.map((r) => r.displayName).join(', ')}',
                         style: TextStyle(
                           color: Colors.orange.shade300,
                           fontSize: 10,
@@ -115,9 +116,9 @@ class SelectedItemIndicator extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 8),
-                      if (onFindStone != null)
+                      if (onFindResource != null)
                         ElevatedButton.icon(
-                          onPressed: onFindStone,
+                          onPressed: onFindResource,
                           icon: Icon(Icons.location_searching, size: 16),
                           label: Text('Find Resource (Debug)', style: TextStyle(fontSize: 12)),
                           style: ElevatedButton.styleFrom(
@@ -126,6 +127,22 @@ class SelectedItemIndicator extends StatelessWidget {
                           ),
                         ),
                     ],
+                    // Show build cost
+                    SizedBox(height: 8),
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Cost: ${stats.buildCost}',
+                        style: TextStyle(
+                          color: Colors.yellow.shade300,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -32,7 +32,7 @@ class PlayerComponent extends PositionComponent {
           position: Vector2(data.x, data.y),
           size: Vector2.all(playerSize),
           anchor: Anchor.center,
-          priority: 10,
+          priority: 100,
         );
 
   @override

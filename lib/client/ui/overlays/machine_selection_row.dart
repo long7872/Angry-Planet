@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import '../../../shared/items/item_type.dart';
-import '../../../shared/items/item_definition.dart';
+import '../../../shared/machines/machine_type.dart';
+import '../../../shared/machines/machine_stats.dart';
 import '../../../shared/inventory/inventory.dart';
 import '../../utils/icon_data.dart';
 
-class ItemSelectionRow extends StatelessWidget {
-  final List<ItemDefinition> placeableItems;
+class MachineSelectionRow extends StatelessWidget {
+  final List<MachineType> placeableMachines;
   final Inventory inventory;
-  final Function(ItemType) onItemSelected;
+  final Function(MachineType) onMachineSelected;
   final VoidCallback onClose;
 
-  const ItemSelectionRow({
+  const MachineSelectionRow({
     Key? key,
-    required this.placeableItems,
+    required this.placeableMachines,
     required this.inventory,
-    required this.onItemSelected,
+    required this.onMachineSelected,
     required this.onClose,
   }) : super(key: key);
 
@@ -25,7 +25,7 @@ class ItemSelectionRow extends StatelessWidget {
       right: 0,
       bottom: 100,
       child: Container(
-        height: 100,
+        height: 120,
         color: Colors.black87,
         child: Column(
           children: [
@@ -33,25 +33,25 @@ class ItemSelectionRow extends StatelessWidget {
             Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                'Select an item to place',
+                'Select a machine to place',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                 ),
               ),
             ),
-            // Item list
+            // Machine list
             Expanded(
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.symmetric(horizontal: 10),
-                itemCount: placeableItems.length + 1, // +1 for close button
+                itemCount: placeableMachines.length + 1, // +1 for close button
                 itemBuilder: (context, index) {
-                  if (index == placeableItems.length) {
+                  if (index == placeableMachines.length) {
                     return _buildCloseButton();
                   }
-                  final item = placeableItems[index];
-                  return _buildItemSlot(item);
+                  final machineType = placeableMachines[index];
+                  return _buildMachineSlot(machineType);
                 },
               ),
             ),
@@ -61,50 +61,53 @@ class ItemSelectionRow extends StatelessWidget {
     );
   }
 
-  Widget _buildItemSlot(ItemDefinition item) {
-    final quantity = inventory.getQuantity(item.type);
-    final hasItem = quantity > 0;
+  Widget _buildMachineSlot(MachineType machineType) {
+    final stats = getMachineStats(machineType);
+    final canAfford = inventory.canAfford(stats.buildCost.toMap());
 
     return GestureDetector(
-      onTap: hasItem ? () => onItemSelected(item.type) : null,
+      onTap: canAfford ? () => onMachineSelected(machineType) : null,
       child: Container(
-        width: 70,
+        width: 80,
         margin: EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
-          color: hasItem ? Color(0xFF3D3020) : Colors.grey.shade800,
+          color: canAfford ? Color(0xFF3D3020) : Colors.grey.shade800,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: hasItem ? Colors.orange : Colors.grey,
+            color: canAfford ? Colors.orange : Colors.grey,
             width: 3,
           ),
         ),
         child: Stack(
           children: [
-            Center(
-              child: Icon(
-                getItemIcon(item.type),
-                size: 35,
-                color: hasItem ? Colors.white : Colors.grey.shade600,
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  getMachineIcon(machineType),
+                  size: 35,
+                  color: canAfford ? Colors.white : Colors.grey.shade600,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  machineType.displayName,
+                  style: TextStyle(
+                    color: canAfford ? Colors.white : Colors.grey.shade600,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                ),
+              ],
             ),
-            if (hasItem)
+            if (!canAfford)
               Positioned(
-                bottom: 2,
+                top: 2,
                 right: 2,
-                child: Container(
-                  padding: EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '$quantity',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                child: Icon(
+                  Icons.lock,
+                  color: Colors.red,
+                  size: 16,
                 ),
               ),
           ],

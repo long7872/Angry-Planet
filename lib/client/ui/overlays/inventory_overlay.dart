@@ -44,7 +44,7 @@ class InventoryOverlay extends StatelessWidget {
                   SizedBox(height: 20),
                   // Items grid
                   Expanded(
-                    child: inventory.isEmpty()
+                    child: inventory.isEmpty
                         ? Center(
                             child: Text(
                               'No items',
@@ -60,10 +60,10 @@ class InventoryOverlay extends StatelessWidget {
                               mainAxisSpacing: 15,
                               crossAxisSpacing: 15,
                             ),
-                            itemCount: inventory.getAllItems().length,
+                            itemCount: inventory.getAllStacks().length,
                             itemBuilder: (context, index) {
-                              final item = inventory.getAllItems()[index];
-                              return _buildInventorySlot(item);
+                              final stack = inventory.getAllStacks()[index];
+                              return _buildInventorySlot(stack);
                             },
                           ),
                   ),
@@ -92,7 +92,7 @@ class InventoryOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildInventorySlot(InventoryItem item) {
+  Widget _buildInventorySlot(stack) {
     return Container(
       decoration: BoxDecoration(
         color: Color(0xFF3D3020),
@@ -102,10 +102,26 @@ class InventoryOverlay extends StatelessWidget {
       child: Stack(
         children: [
           Center(
-            child: Icon(
-              getItemIcon(item.definition.type),
-              size: 40,
-              color: Colors.white,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _getStackIcon(stack),
+                  size: 40,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  stack.displayName,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
           Positioned(
@@ -118,7 +134,7 @@ class InventoryOverlay extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${item.quantity}',
+                '${stack.quantity}',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -131,4 +147,13 @@ class InventoryOverlay extends StatelessWidget {
       ),
     );
   }
+
+  IconData _getStackIcon(stack) {
+    if (stack.isResource) {
+      return getResourceIcon(stack.asResource!);
+    } else {
+      return getMachineIcon(stack.asMachine!);
+    }
+  }
+
 }

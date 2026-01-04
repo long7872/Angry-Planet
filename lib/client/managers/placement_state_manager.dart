@@ -2,16 +2,17 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import '../../shared/machines/machine_stats.dart';
+import '../../shared/machines/machine_type.dart';
+import '../../shared/resources/resource_type.dart';
 import '../../shared/tile_type.dart';
+import '../components/machines/machine_factory.dart';
 import '../player/player_component.dart';
 import '../world/client_world.dart';
 import '../ui/placement/tile_highlighter.dart';
 import '../ui/placement/ghost_preview.dart';
 import '../ui/placement/confirm_buttons.dart';
-import '../components/placed_item.dart';
 import '../../shared/inventory/inventory.dart';
-import '../../shared/items/item_type.dart';
-import '../../shared/items/item_definition.dart';
 import 'machine_registry.dart';
 
 enum PlacementState {
@@ -29,7 +30,7 @@ class PlacementStateManager extends Component {
   final MachineRegistry machineRegistry;
 
   PlacementState currentState = PlacementState.idle;
-  ItemType? selectedItem;
+  MachineType? selectedMachine;
   Vector2? selectedTile;
 
   final List<TileHighlighter> _highlighters = [];
@@ -99,15 +100,15 @@ class PlacementStateManager extends Component {
     currentState = PlacementState.itemSelectionMode;
     _lastPlayerTilePos = _getPlayerTilePosition();
     _highlightValidTiles();
-    game.overlays.add('item_row');
+    game.overlays.add('machine_row');
     print("🔧 Item mode activated");
   }
 
   void exitItemMode() {
     _clearHighlights();
     _clearSelection();
-    game.overlays.remove('item_row');
-    game.overlays.remove('selected_item_indicator');
+    game.overlays.remove('machine_row');
+    game.overlays.remove('selected_machine_indicator');
     currentState = PlacementState.idle;
 
     // Reset notifiers
@@ -116,23 +117,26 @@ class PlacementStateManager extends Component {
     print("🔧 Item mode deactivated");
   }
 
-  void selectItem(ItemType itemType) {
-    if (!inventory.has(itemType, 1)) {
-      print("❌ Not enough items in inventory");
+  void selectMachine(MachineType machineType) {
+    // Check if can afford
+    final stats = getMachineStats(machineType);
+    if (!inventory.canAfford(stats.buildCost.toMap())) {
+      print("❌ Cannot afford ${stats.type.displayName}");
+      print("   Cost: ${stats.buildCost}");
       return;
     }
 
-    selectedItem = itemType;
+    selectedMachine = machineType;
     currentState = PlacementState.itemSelected;
-
-    // Update highlights based on selected item
+    
+    // Update highlights based on selected machine
     _updateHighlights();
-
+    
     // Show selected item indicator
-    game.overlays.remove('item_row');
-    game.overlays.add('selected_item_indicator');
-
-    print("✅ Selected: ${getItemDefinition(itemType).name}");
+    game.overlays.remove('machine_row');
+    game.overlays.add('selected_machine_indicator');
+    
+    print("✅ Selected: ${machineType.displayName}");
   }
 
   void deselectItem() {
@@ -141,17 +145,17 @@ class PlacementStateManager extends Component {
     print("🔙 Deselecting item, returning to item selection");
     
     // Remove selected item indicator
-    game.overlays.remove('selected_item_indicator');
+    game.overlays.remove('selected_machine_indicator');
     
     // Clear selection
-    selectedItem = null;
+    selectedMachine = null;
     selectedTile = null;
     
     // Go back to item selection mode
     currentState = PlacementState.itemSelectionMode;
     
     // Show item row again
-    game.overlays.add('item_row');
+    game.overlays.add('machine_row');
     
     // Update highlights to show all tiles (not just valid ones)
     _updateHighlights();
@@ -162,7 +166,7 @@ class PlacementStateManager extends Component {
       print("⚠️ Not in item selected state");
       return;
     }
-    if (selectedItem == null) {
+    if (selectedMachine == null) {
       print("⚠️ No item selected");
       return;
     }
@@ -184,16 +188,17 @@ class PlacementStateManager extends Component {
     // CHECK 2: Is tile valid for this item?
     if (!_isValidTile(tilePos)) {
       final tile = _getTileAt(tilePos);
-      final itemDef = getItemDefinition(selectedItem!);
+      final stats = getMachineStats(selectedMachine!);
       
       // ✓ UPDATED: Better error messages
       if (machineRegistry.hasMachineAt(tilePos)) {
         final existing = machineRegistry.getMachineAt(tilePos);
-        print("❌ Cannot place - ${existing?.itemType.name} already here");
+        print("❌ Cannot place - ${existing?.machineType.name} already here");
       } else if (tile != null) {
-        print("❌ Cannot place ${itemDef.name} on ${tile.resource.name}");
-        print("   Required: ${itemDef.validResources.map((r) => r.name).join(' OR ')}");
+        print("❌ Cannot place ${stats.type.displayName} on ${tile.resource.name}");
+        print("   Required: ${stats.validPlacements.map((r) => r.name).join(' OR ')}");
       }
+
       return;
     }
 
@@ -242,13 +247,33 @@ class PlacementStateManager extends Component {
   }
 
   void confirmPlacement() {
-    if (selectedItem == null || selectedTile == null) return;
+    if (selectedMachine == null || selectedTile == null) {
+      print("⚠️ Cannot confirm: missing machine or tile");
+      return;
+    }
 
-    // Place item
-    _placeItem(selectedItem!, selectedTile!);
+    print("🏗️ Confirming placement...");
 
-    // Deduct from inventory
-    inventory.remove(selectedItem!, 1);
+    final stats = getMachineStats(selectedMachine!);
+
+    // Check can afford
+    if (!inventory.canAfford(stats.buildCost.toMap())) {
+      print("❌ Cannot afford ${stats.type.displayName}");
+      return;
+    }
+
+    // Deduct build cost
+    if (!inventory.deductCost(stats.buildCost.toMap())) {
+      print("❌ Failed to deduct cost");
+      return;
+    }
+
+    // Get resource type at this tile (for digger)
+    final tile = _getTileAt(selectedTile!);
+    final resourceNode = tile?.resource;
+
+    // Place machine
+    _placeMachine(selectedMachine!, selectedTile!, resourceNode);
 
     // Cleanup
     _hideGhostPreview();
@@ -256,9 +281,9 @@ class PlacementStateManager extends Component {
     _clearSelection();
 
     currentState = PlacementState.idle;
-    game.overlays.remove('selected_item_indicator');
+    game.overlays.remove('selected_machine_indicator');
 
-    print("✅ Item placed successfully");
+    print("✅ Machine placed successfully");
   }
 
   void cancelPlacement() {
@@ -269,7 +294,7 @@ class PlacementStateManager extends Component {
     currentState = PlacementState.itemSelected;
 
     // Show item row again
-    game.overlays.add('item_row');
+    game.overlays.add('machine_row');
 
     print("❌ Placement cancelled");
   }
@@ -347,38 +372,38 @@ class PlacementStateManager extends Component {
   }
 
   void _clearSelection() {
-    selectedItem = null;
+    selectedMachine = null;
     selectedTile = null;
   }
 
   // ==================== VALIDATION ====================
 
   bool _isValidTile(Vector2 tilePos) {
-    if (selectedItem == null) return false;
+    if (selectedMachine == null) return false;
 
-    final itemDef = getItemDefinition(selectedItem!);
-
-    // ✓ CHECK 1: Get tile data
+    final stats = getMachineStats(selectedMachine!);
+    
+    // CHECK 1: Get tile data
     final tile = _getTileAt(tilePos);
     if (tile == null) {
       print("⚠️ Tile data not found at $tilePos");
       return false;
     }
-    
-    // ✓ CHECK 2: Machine already exists?
+
+    // CHECK 2: Machine already exists?
     if (machineRegistry.hasMachineAt(tilePos)) {
       print("⚠️ Machine already exists at $tilePos");
       return false;
     }
 
-    // Check if biome is valid for this item
-    final isValid = itemDef.validResources.contains(tile.resource);
-
+    // CHECK 3: Resource type matches?
+    final isValid = stats.validPlacements.contains(tile.resource);
+    
     if (!isValid) {
-      print("⚠️ Invalid resource: ${tile.resource.name} for ${itemDef.name}");
-      print("   Required: ${itemDef.validResources.map((r) => r.name).join(' OR ')}");
+      print("⚠️ Invalid placement: ${tile.resource.name} for ${stats.type.displayName}");
+      print("   Required: ${stats.validPlacements.map((r) => r.name).join(' OR ')}");
     }
-
+    
     return isValid;
   }
 
@@ -413,12 +438,12 @@ class PlacementStateManager extends Component {
   }
 
   void _showGhostPreview(Vector2 tilePos) {
-    if (selectedItem == null) return;
+    if (selectedMachine == null) return;
 
     _ghostPreview = GhostPreview(
-      itemType: selectedItem!,
+      machineType: selectedMachine!,
       tilePosition: tilePos,
-      game: game,
+      game: game, 
     );
     world.add(_ghostPreview!);
 
@@ -446,26 +471,28 @@ class PlacementStateManager extends Component {
 
   // ==================== PLACEMENT (UPDATED) ====================
 
-  void _placeItem(ItemType itemType, Vector2 tilePos) {
-    final item = PlacedItemComponent(
-      itemType: itemType,
+  void _placeMachine(MachineType machineType, Vector2 tilePos, ResourceType? resourceNode) {
+    final machine = MachineFactory.createMachine(
+      type: machineType,
       tilePosition: tilePos,
       game: game,
+      resourceNode: resourceNode,
     );
-    world.add(item);
-
-    // ✓ Register in machine registry
-    machineRegistry.registerMachine(tilePos, item);
-
-    print("🏗️ Placed ${getItemDefinition(itemType).name} at $tilePos");
+    
+    world.add(machine);
+    
+    // Register in machine registry
+    machineRegistry.registerMachine(tilePos, machine);
+    
+    print("🏗️ Placed ${getMachineStats(machineType).type.displayName} at $tilePos");
   }
 
   // Add this method at the end of the class
 
   void teleportToNearestValidBiome() {
-    if (selectedItem == null) return;
+    if (selectedMachine == null) return;
     
-    final itemDef = getItemDefinition(selectedItem!);
+    final stats = getMachineStats(selectedMachine!);
     final player = world.children.query<PlayerComponent>().firstOrNull;
     if (player == null) return;
     
@@ -481,7 +508,7 @@ class PlacementStateManager extends Component {
           );
           
           final tile = _getTileAt(tilePos);
-          if (tile != null && itemDef.validResources.contains(tile.biome)) {
+          if (tile != null && stats.validPlacements.contains(tile.biome)) {
             // Found valid tile! Teleport player
             final worldPos = tilePos * 16 + Vector2(8, 8); // Center of tile
             player.position = worldPos;
@@ -503,7 +530,7 @@ class PlacementStateManager extends Component {
 
   // ==================== PUBLIC GETTERS ====================
 
-   List<TileHighlighter> getHighlighters() => _highlighters;
+  List<TileHighlighter> getHighlighters() => _highlighters;
 
   // Add this getter at the end of the class
   List<String> getValidTileCoords() {
@@ -511,6 +538,12 @@ class PlacementStateManager extends Component {
         .where((h) => h.isValid)
         .map((h) => "(${h.tilePosition.x.toInt()}, ${h.tilePosition.y.toInt()})")
         .toList();
+  }
+
+  bool get isInPlacementMode {
+    return currentState == PlacementState.itemSelectionMode ||
+           currentState == PlacementState.itemSelected ||
+           currentState == PlacementState.ghostPreview;
   }
 
   // ==================== CLEANUP ====================

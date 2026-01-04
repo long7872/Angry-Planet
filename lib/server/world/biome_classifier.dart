@@ -1,3 +1,4 @@
+import '../../shared/resources/resource_type.dart';
 import '../../shared/tile_type.dart';
 import '../utils/ore_config.dart';
 import 'dart:math';
@@ -24,7 +25,7 @@ class BiomeClassifier {
 
   /// Forest spawn configuration
   static const forestConfig = OreConfig(
-    type: ResourceType.forest,
+    type: ResourceType.wood,
     minDetail: 0.0,
     spawnChance: 0.10, // 40% chance
   );
