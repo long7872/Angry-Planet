@@ -1,11 +1,15 @@
+import 'dart:ui';
+
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/material.dart';
 import '../../../shared/inventory/item_stack.dart';
 import '../../../shared/machines/machine_type.dart';
 import '../../../shared/machines/machine_stats.dart';
 import '../../../shared/inventory/inventory.dart';
 import '../../../shared/resources/resource_type.dart';
 import '../../../shared/game/energy_system.dart';
+import 'machine_health_bar.dart';
 
 /// Base class for all machines
 abstract class BaseMachine extends SpriteComponent {
@@ -30,6 +34,11 @@ abstract class BaseMachine extends SpriteComponent {
   // Track if machine is actively working this tick
   bool isWorking = false;
 
+  // Health system
+  double health = 150;
+  double maxHealth = 150;
+  bool isBroken = false;
+
   BaseMachine({
     required this.machineType,
     required this.tilePosition,
@@ -51,11 +60,47 @@ abstract class BaseMachine extends SpriteComponent {
   }
 
   @override
+  void render(Canvas canvas) {
+    // Apply red tint if damaged
+    if (isDamaged && !isBroken) {
+      final damagePercentage = 1 - healthPercentage;
+      final redTint = Paint()
+        ..colorFilter = ColorFilter.mode(
+          Colors.red.withOpacity(damagePercentage * 0.6),  // More damage = more red
+          BlendMode.srcATop,
+        );
+      
+      canvas.saveLayer(null, redTint);
+      super.render(canvas);
+      canvas.restore();
+    } else if (isBroken) {
+      // Broken machines are dark red
+      final brokenTint = Paint()
+        ..colorFilter = ColorFilter.mode(
+          Colors.red.withOpacity(0.8),
+          BlendMode.srcATop,
+        );
+      
+      canvas.saveLayer(null, brokenTint);
+      super.render(canvas);
+      canvas.restore();
+    } else {
+      super.render(canvas);
+    }
+  }
+
+  @override
   Future<void> onLoad() async {
     await super.onLoad();
     
     // Load sprite based on machine type
     sprite = await _loadMachineSprite();
+
+    // Add health bar component
+    add(MachineHealthBar(
+      machine: this,
+      game: game,
+    ));
   }
 
   Future<Sprite> _loadMachineSprite() async {
@@ -76,6 +121,11 @@ abstract class BaseMachine extends SpriteComponent {
     // }
 
     isWorking = false;
+
+    // Check if machine is broken
+    if (isBroken) {
+      return;  // Broken machines don't operate
+    }
 
     // Update power status BEFORE operating
     _updatePowerStatus();
@@ -151,14 +201,45 @@ abstract class BaseMachine extends SpriteComponent {
     return outputStorage.removeResource(resource, amount);
   }
 
+  /// Take damage
+  void takeDamage(double amount) {
+    health -= amount;
+    health = health.clamp(0, maxHealth);
+    
+    if (health <= 0 && !isBroken) {
+      isBroken = true;
+      print('💥 ${machineType.displayName} at ${tilePosition} is BROKEN!');
+    }
+  }
+
+  /// Repair machine
+  void repair(double amount) {
+    if (health >= maxHealth) return;
+    
+    health += amount;
+    health = health.clamp(0, maxHealth);
+    
+    if (isBroken && health > 0) {
+      isBroken = false;
+      print('🔧 ${machineType.displayName} at ${tilePosition} REPAIRED!');
+    }
+  }
+
   List<ItemStack> getAvailableOutputStacks() {
     return outputStorage.getAllStacks();
   }
+
+  /// Get health percentage
+  double get healthPercentage => health / maxHealth;
+
+  /// Check if damaged
+  bool get isDamaged => health < maxHealth;
 
   /// Get current energy production (for display)
   double getCurrentEnergyProduction() {
     // if (!stats.isGenerator) return 0;
     // return stats.energyProduction;
+    if (isBroken) return 0;
     return isWorking ? stats.energyProduction : 0;
   }
 
@@ -166,6 +247,7 @@ abstract class BaseMachine extends SpriteComponent {
   double getCurrentEnergyConsumption() {
     // if (!isPowered) return 0;
     // if (!canOperate()) return 0;
+    if (isBroken) return 0;
     return isWorking ? stats.energyConsumption : 0;
   }
 
@@ -173,6 +255,7 @@ abstract class BaseMachine extends SpriteComponent {
   double getCurrentPollutionRate() {
     // if (!canOperate()) return 0;
     // return stats.pollutionRate;
+    if (isBroken) return 0;
     return isWorking ? stats.pollutionRate : 0;
   }
 }

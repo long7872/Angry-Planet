@@ -7,6 +7,7 @@ import '../shared/machines/machine_type.dart';
 import '../shared/resources/resource_type.dart';
 import '../shared/game/game_manager.dart';
 import 'managers/machine_interaction_manager.dart';
+import 'managers/machine_repair_manager.dart';
 import 'managers/placement_state_manager.dart';
 import 'managers/machine_registry.dart';
 import 'managers/multiplayer_manager.dart';
@@ -40,6 +41,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final Inventory inventory;
   late final MachineRegistry machineRegistry;
   late final MachineInteractionManager machineInteractionManager;
+  late final MachineRepairManager machineRepairManager;
   
   // Player components
   late final PlayerComponent localPlayer;
@@ -169,6 +171,13 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     );
     await add(machineInteractionManager);
 
+    machineRepairManager = MachineRepairManager(
+      game: this,
+      playerInventory: inventory,
+      world: cworld,
+    );
+    await add(machineRepairManager);
+
     // Register overlays
     _registerOverlays();
 
@@ -195,17 +204,30 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       return HudOverlay(
         onBaloPressed: () => placementManager.openInventory(),
         onItemPressed: () {
+          // Disable repair mode when entering item mode
+          if (machineRepairManager.isRepairMode) {
+            machineRepairManager.disableRepairMode();
+            overlays.remove('hud');
+            overlays.add('hud');
+          }
           if (placementManager.currentState == PlacementState.itemSelectionMode) {
             placementManager.exitItemMode();
             // game.overlays.remove('tile_debug');
           } else if (placementManager.currentState == PlacementState.itemSelected) {
             // Item is selected → Go back to selection mode
-            placementManager.deselectItem();  // ✓ New method
+            placementManager.deselectItem();  // New method
           } else {
             placementManager.enterItemMode();
             // game.overlays.add('tile_debug');
           }
         },
+        onRepairPressed: () { 
+          machineRepairManager.toggleRepairMode();
+          // Refresh HUD to show updated state
+          overlays.remove('hud');
+          overlays.add('hud');
+        },
+        isRepairMode: machineRepairManager.isRepairMode,
       );
     });
 
@@ -256,7 +278,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       );
     });
 
-    // ✓ NEW: Machine UI overlay
+    // Machine UI overlay
     overlays.addEntry('machine_ui', (context, game) {
       final machine = machineInteractionManager.selectedMachine;
       if (machine == null) return SizedBox.shrink();
@@ -308,14 +330,20 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   void onTapDown(TapDownEvent event) {
     super.onTapDown(event);
     
-    // Priority 1: Placement mode
+    // Priority 1: Check for damaged machines (repair interaction)
+    if (machineRepairManager.isRepairMode) {
+      machineRepairManager.onTapDown(event);
+      return;
+    }
+
+    // Priority 2: Placement mode
     if (placementManager.currentState == PlacementState.itemSelected) {
       final worldPos = camera.globalToLocal(event.localPosition);
       placementManager.selectTile(worldPos);
       return;
     }
 
-    // Priority 2: Machine interaction (when not in placement mode)
+    // Priority 3: Machine interaction (when not in placement mode)
     // Let machine interaction manager handle it
     machineInteractionManager.onTapDown(event);
   }

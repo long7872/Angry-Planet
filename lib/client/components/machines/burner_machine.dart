@@ -78,11 +78,13 @@ class BurnerMachine extends BaseMachine {
 
   @override
   double getCurrentEnergyProduction() {
+    if (isBroken) return 0;
     return isBurning ? energyPerSecond : 0;
   }
 
   @override
   double getCurrentPollutionRate() {
+    if (isBroken) return 0;
     return isBurning ? stats.pollutionRate : 0;
   }
 

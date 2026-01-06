@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import 'package:flame/components.dart';  // ✓ ADD THIS
 import '../machines/machine_type.dart';
+import 'acid_rain_event.dart';
 import 'game_tick.dart';
 import 'energy_system.dart';
 import 'pollution_system.dart';
@@ -11,6 +14,9 @@ class GameManager extends Component {  // ✓ EXTEND Component
   final GameTick gameTick = GameTick();
   final EnergyNetwork energyNetwork = EnergyNetwork();
   final PollutionSystem pollutionSystem = PollutionSystem();
+  final AcidRainEvent acidRainEvent = AcidRainEvent();
+
+  final Random _random = Random();
   
   MachineRegistry? _machineRegistry;
 
@@ -45,8 +51,34 @@ class GameManager extends Component {  // ✓ EXTEND Component
     // 3. Update pollution
     pollutionSystem.tick();
 
-    // 4. Log stats
+    // 4. Check for acid rain event
+    _checkAcidRainEvent();
+    
+    // 5. Update acid rain
+    final machines = _machineRegistry!.getAllMachines();
+    acidRainEvent.tick(machines);
+
+    // 6. Log stats
     _logStats();
+  }
+
+  /// Check if acid rain should start
+  void _checkAcidRainEvent() {
+    // Only start if not already active
+    if (acidRainEvent.isActive) return;
+    if (acidRainEvent.isOnCooldown) return;
+    
+    final pollutionStats = pollutionSystem.getStats();
+    final pollutionPercentage = pollutionStats.percentage;
+
+    // Only trigger if pollution is high enough
+    // if (pollutionPercentage < 40) return;
+
+    // 5% chance per tick to trigger event
+    const triggerChance = 0.05;  // 5%
+    if (_random.nextDouble() < triggerChance) {
+      acidRainEvent.start(pollutionPercentage);
+    }
   }
 
   void _logStats() {
@@ -55,6 +87,15 @@ class GameManager extends Component {  // ✓ EXTEND Component
 
     print('⚡ Energy: ${energyStats.production.toStringAsFixed(1)}P / ${energyStats.consumption.toStringAsFixed(1)}C NE/s | ${energyStats.net >= 0 ? "✓" : "✗"} Net: ${energyStats.net.toStringAsFixed(1)} | Powered: ${energyStats.activeNodes}/${energyStats.totalNodes}');
     print('☣️  Pollution: ${pollutionStats.current.toStringAsFixed(0)} / ${pollutionStats.max.toStringAsFixed(0)} (${pollutionStats.percentage.toStringAsFixed(1)}%) | ${pollutionStats.level.displayName} | +${pollutionStats.production.toStringAsFixed(1)} -${pollutionStats.reduction.toStringAsFixed(1)}');
+    // Log acid rain status
+    if (acidRainEvent.isActive) {
+      print('☔ ACID RAIN ACTIVE! ${acidRainEvent.duration.toInt()}s remaining');
+    } else if (acidRainEvent.isOnCooldown) {
+      // Show cooldown status (optional, only every 10 ticks to avoid spam)
+      if (gameTick.tickCount % 10 == 0) {
+        print('☔ Acid rain cooldown: ${acidRainEvent.cooldownRemaining.toInt()}s remaining');
+      }
+    }
   }
 
   /// Register a machine with energy and pollution systems
