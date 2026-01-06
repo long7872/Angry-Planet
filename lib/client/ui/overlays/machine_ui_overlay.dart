@@ -14,6 +14,7 @@ import '../../components/machines/energy_linker_machine.dart';
 import '../../components/machines/item_linker_machine.dart';
 import '../../components/machines/smelter_machine.dart';
 import '../../components/machines/holder_machine.dart';
+import '../../components/machines/spaceship_machine.dart';
 import '../../managers/machine_registry.dart';
 import '../../utils/icon_data.dart';
 import 'linker_connection_ui.dart';
@@ -87,6 +88,7 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
                     widget.machine is ItemLinkerMachine;
     final isHolder = widget.machine is HolderMachine;
     final isSmelter = widget.machine is SmelterMachine;
+    final isSpaceship = widget.machine is SpaceshipMachine;
 
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -105,9 +107,39 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
               ),
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Color(0xFF2C2416),
+                // Special styling for spaceship
+                gradient: isSpaceship 
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1a1a2e),
+                          Color(0xFF16213e),
+                          Color(0xFF0f3460),
+                        ],
+                      )
+                    : null,
+                color: isSpaceship ? null : Color(0xFF2C2416),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Color(0xFF8B7355), width: 4),
+                border: Border.all(
+                  color: isSpaceship 
+                      ? ((widget.machine as SpaceshipMachine).isFullyCharged 
+                          ? Colors.greenAccent 
+                          : Colors.blueAccent)
+                      : Color(0xFF8B7355),
+                  width: 4,
+                ),
+                boxShadow: isSpaceship 
+                    ? [
+                        BoxShadow(
+                          color: ((widget.machine as SpaceshipMachine).isFullyCharged 
+                              ? Colors.greenAccent 
+                              : Colors.blueAccent).withOpacity(0.5),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -117,12 +149,14 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
                   SizedBox(height: 15),
                   
                   // Machine Stats - Fixed
-                  _buildStats(),
-                  SizedBox(height: 15),
+                  if (!isSpaceship) ...[
+                    _buildStats(),
+                    SizedBox(height: 15),
+                  ],
                   
-                  // ✓ SCROLLABLE CONTENT AREA
+                  // SCROLLABLE CONTENT AREA
                   Expanded(
-                    child: SingleChildScrollView(  // ✓ ADD THIS
+                    child: SingleChildScrollView(  // ADD THIS
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -139,6 +173,12 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
                               height: MediaQuery.of(context).size.height * 0.55,  // ✓ Set height for smelter
                               child: _buildSmelterRecipeUI(),
                             )
+                          else if (isSpaceship)
+                            _buildSpaceshipUI()
+                            // Container(
+                            //   height: MediaQuery.of(context).size.height * 0.35,  // ✓ Set height for smelter
+                            //   child: _buildSpaceshipUI(),
+                            // )
                           else ...[
                             _buildMachineSpecificInfo(),
                             SizedBox(height: 15),
@@ -307,6 +347,438 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
     }
     
     return SizedBox.shrink();
+  }
+
+  /// Build spaceship-specific UI
+  Widget _buildSpaceshipUI() {
+    final spaceship = widget.machine as SpaceshipMachine;
+    final cubesLoaded = spaceship.energyCubesLoaded;
+    final cubesNeeded = SpaceshipMachine.requiredCubes;
+    final energyStored = spaceship.storedEnergy;
+    final energyNeeded = SpaceshipMachine.requiredEnergy;
+    final isFullyCharged = spaceship.isFullyCharged;
+    final cubesReady = spaceship.cubesReady;
+    final energyReady = spaceship.energyReady;
+    final playerCubes = widget.playerInventory.getResourceQuantity(ResourceType.energyCube);
+
+    return Column(
+      children: [
+        // Title
+        Container(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            isFullyCharged 
+                ? 'READY FOR LAUNCH!'
+                : 'Charge the spaceship to escape',
+            style: TextStyle(
+              color: isFullyCharged ? Colors.greenAccent : Colors.white70,
+              fontSize: 14,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+        
+        SizedBox(height: 10),
+        
+        // ✓ UPDATED: Two charging sections side by side
+        Row(
+          children: [
+            // Energy Cubes Section
+            Expanded(
+              child: _buildCubeChargingSection(
+                cubesLoaded, 
+                cubesNeeded, 
+                cubesReady,
+                spaceship.cubeProgress,
+              ),
+            ),
+            
+            SizedBox(width: 10),
+            
+            // Energy Section
+            Expanded(
+              child: _buildEnergyChargingSection(
+                energyStored,
+                energyNeeded,
+                energyReady,
+                spaceship.energyProgress,
+              ),
+            ),
+          ],
+        ),
+        
+        SizedBox(height: 15),
+        
+        // Loading Section for Energy Cubes (if not ready)
+        if (!cubesReady)
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blueAccent, width: 2),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      getResourceIcon(ResourceType.energyCube),
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Load Energy Cubes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'In inventory: $playerCubes',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          'Still needed: ${cubesNeeded - cubesLoaded}',
+                          style: TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                
+                // Load buttons
+                Column(
+                  children: [
+                    SizedBox(
+                      width: 70,
+                      child: _buildSmallButton(
+                        'Load',
+                        Icons.add,
+                        Colors.blue,
+                        playerCubes > 0,
+                        () => _loadCubeToSpaceship(1, spaceship),
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    SizedBox(
+                      width: 70,
+                      child: _buildSmallButton(
+                        'All',
+                        Icons.add_circle,
+                        Colors.blue.shade700,
+                        playerCubes > 0,
+                        () => _loadCubeToSpaceship(playerCubes, spaceship),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        
+        SizedBox(height: 10),
+        
+        // Energy charging info
+        if (!energyReady)
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orangeAccent, width: 2),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.flash_on, color: Colors.orangeAccent, size: 28),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Energy Charging',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Connect Energy Linker to charge',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        'Still needed: ${(energyNeeded - energyStored).toStringAsFixed(0)} NE',
+                        style: TextStyle(
+                          color: Colors.orangeAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        
+        // Spacer to push launch button to bottom
+        if (isFullyCharged)
+          SizedBox(height: 20),
+        
+        // Launch Button (if fully charged)
+        if (isFullyCharged) ...[
+          SizedBox(height: 15),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _launchSpaceship(spaceship),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.green, Colors.greenAccent],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.greenAccent.withOpacity(0.5),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.rocket_launch, color: Colors.white, size: 28),
+                    SizedBox(width: 10),
+                    Text(
+                      'LAUNCH SPACESHIP',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Build Energy Cube charging section
+  Widget _buildCubeChargingSection(int loaded, int needed, bool isReady, double progress) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isReady ? Colors.greenAccent : Colors.blueAccent,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.battery_charging_full,
+            size: 36,
+            color: isReady ? Colors.greenAccent : Colors.blueAccent,
+          ),
+          SizedBox(height: 8),
+          Text(
+            '$loaded / $needed',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Energy Cubes',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+            ),
+          ),
+          SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 12,
+              backgroundColor: Colors.grey.shade800,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isReady ? Colors.greenAccent : Colors.blueAccent,
+              ),
+            ),
+          ),
+          SizedBox(height: 5),
+          Text(
+            '${(progress * 100).toStringAsFixed(0)}%',
+            style: TextStyle(
+              color: isReady ? Colors.greenAccent : Colors.blueAccent,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build energy charging section
+  Widget _buildEnergyChargingSection(double stored, double needed, bool isReady, double progress) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isReady ? Colors.greenAccent : Colors.orangeAccent,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.flash_on,
+            size: 36,
+            color: isReady ? Colors.greenAccent : Colors.orangeAccent,
+          ),
+          SizedBox(height: 8),
+          Text(
+            '${stored.toStringAsFixed(0)}',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '/ ${needed.toStringAsFixed(0)} NE',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+            ),
+          ),
+          SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 12,
+              backgroundColor: Colors.grey.shade800,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isReady ? Colors.greenAccent : Colors.orangeAccent,
+              ),
+            ),
+          ),
+          SizedBox(height: 5),
+          Text(
+            '${(progress * 100).toStringAsFixed(0)}%',
+            style: TextStyle(
+              color: isReady ? Colors.greenAccent : Colors.orangeAccent,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Load Energy Cubes to spaceship
+  void _loadCubeToSpaceship(int amount, SpaceshipMachine spaceship) {
+    final remaining = SpaceshipMachine.requiredCubes - spaceship.energyCubesLoaded;
+    final toLoad = amount.clamp(0, remaining);
+    
+    if (widget.playerInventory.hasResource(ResourceType.energyCube, toLoad)) {
+      if (spaceship.addToInput(ResourceType.energyCube, toLoad)) {
+        widget.playerInventory.removeResource(ResourceType.energyCube, toLoad);
+        setState(() {});
+      }
+    }
+  }
+
+  /// Launch spaceship
+  void _launchSpaceship(SpaceshipMachine spaceship) {
+    spaceship.launch();
+    widget.onClose();
+    
+    // Show victory dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Color(0xFF1a1a2e),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.greenAccent, width: 3),
+          ),
+          title: Column(
+            children: [
+              Icon(Icons.emoji_events, color: Colors.amber, size: 60),
+              SizedBox(height: 10),
+              Text(
+                'VICTORY!',
+                style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'You successfully escaped The Angry Planet!\n\nThanks for playing!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // TODO: Return to main menu or restart
+              },
+              child: Text(
+                'Continue',
+                style: TextStyle(color: Colors.greenAccent, fontSize: 16),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildLinkerConnectionUI() {

@@ -25,6 +25,9 @@ class MachineConfig {
           ResourceType.coal, 
         ];
       
+      case MachineType.spaceship:
+        return [ResourceType.energyCube];
+      
       case MachineType.holder:
         return null;  // Accepts anything
       

@@ -20,6 +20,8 @@ IconData getMachineIcon(MachineType type) {
       return Icons.power;
     case MachineType.itemLinker:
       return Icons.move_down;
+    case MachineType.spaceship:
+      return Icons.rocket;
   }
 }
 

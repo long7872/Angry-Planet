@@ -12,6 +12,8 @@ import '../../../shared/machines/machine_type.dart';
 import '../../../shared/resources/resource_type.dart';
 import 'package:flame/components.dart';
 
+import 'spaceship_machine.dart';
+
 /// Factory for creating machines
 class MachineFactory {
   static int _nextMachineId = 0;
@@ -81,6 +83,13 @@ class MachineFactory {
 
       case MachineType.itemLinker:
         return ItemLinkerMachine(
+          tilePosition: tilePosition,
+          game: game,
+          machineId: machineId,
+        );
+
+      case MachineType.spaceship:
+        return SpaceshipMachine(
           tilePosition: tilePosition,
           game: game,
           machineId: machineId,

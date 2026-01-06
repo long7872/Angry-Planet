@@ -1,3 +1,4 @@
+import '../../../shared/inventory/item_stack.dart';
 import '../../../shared/resources/resource_type.dart';
 import 'base_machine.dart';
 import 'package:flame/game.dart';
@@ -76,7 +77,7 @@ class HolderMachine extends BaseMachine {
   /// Override takeFromOutput for consistency (Holder uses inputStorage as main storage)
   @override
   bool takeFromOutput(ResourceType resource, int amount) {
-    // ✓ Check if powered - if not, reject
+    // Check if powered - if not, reject
     if (!isPowered) {
       print('📦 Holder: No power - cannot take items');
       return false;
@@ -84,6 +85,12 @@ class HolderMachine extends BaseMachine {
     
     // For holder, "output" is also the inputStorage
     return inputStorage.removeResource(resource, amount);
+  }
+
+  /// Holder uses inputStorage for everything
+  @override
+  List<ItemStack> getAvailableOutputStacks() {
+    return inputStorage.getAllStacks();
   }
 
   // @override

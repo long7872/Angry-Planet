@@ -287,6 +287,8 @@ class _MachineSelectorDialogState extends State<MachineSelectorDialog> {
         return Colors.lightBlue;
       case MachineType.itemLinker:
         return Colors.amber;
+      case MachineType.spaceship:
+        return Colors.blueAccent;
     }
   }
 }

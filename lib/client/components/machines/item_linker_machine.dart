@@ -46,7 +46,7 @@ class ItemLinkerMachine extends BaseMachine {
   @override
   void operate() {
     if (!_canTransfer()) {
-      _lastTransferSuccessful = false;  // ✓ Mark as not transferring
+      _lastTransferSuccessful = false;
       return;
     }
 
@@ -72,19 +72,21 @@ class ItemLinkerMachine extends BaseMachine {
     if (sourceMachine == null) return false;
     if (!hasAnyTarget) return false;
     
-    // Source and target must be different
-    // if (sourceMachine == targetMachine) {
-    //   return false;
-    // }
-    
     // Source must have items in output
-    if (sourceMachine!.outputStorage.isEmpty) return false;
+    final availableStacks = sourceMachine!.getAvailableOutputStacks();
+    if (availableStacks.isEmpty) return false;
+
+    for (final stack in availableStacks) {
+      if (stack.isResource && !stack.isEmpty) {
+        return true;  // Found at least one item to transfer
+      }
+    }
     
     return true;
   }
 
   void _transferItems() {
-    final sourceOutput = sourceMachine!.outputStorage.getAllStacks();
+    final sourceOutput = sourceMachine!.getAvailableOutputStacks();
     
     // Try to transfer first available item
     for (final stack in sourceOutput) {
@@ -137,7 +139,15 @@ class ItemLinkerMachine extends BaseMachine {
   /// Returns true if successful
   bool _transferResource(ResourceType resource, int amount, BaseMachine target) {
     // Verify source has the item
-    if (!sourceMachine!.outputStorage.hasResource(resource, amount)) {
+    bool hasResource = false;
+    for (final stack in sourceMachine!.getAvailableOutputStacks()) {
+      if (stack.isResource && stack.asResource == resource && stack.quantity >= amount) {
+        hasResource = true;
+        break;
+      }
+    }
+
+    if (!hasResource) {
       return false;
     }
 
@@ -153,7 +163,7 @@ class ItemLinkerMachine extends BaseMachine {
     }
     
     // Try to remove from source
-    if (!sourceMachine!.outputStorage.removeResource(resource, amount)) {
+    if (!sourceMachine!.takeFromOutput(resource, amount)) {
       return false;
     }
     
@@ -162,7 +172,7 @@ class ItemLinkerMachine extends BaseMachine {
       print('📦 Item Linker transferred: $amount ${resource.displayName} (${sourceMachine!.machineType.displayName} → ${target.machineType.displayName})');
       return true;
     } else {
-      sourceMachine!.outputStorage.addResource(resource, amount);
+      sourceMachine!.addToInput(resource, amount);
       
       if (target is! HolderMachine && target is! SmelterMachine) {
         print('📦 Item Linker blocked: target input full');

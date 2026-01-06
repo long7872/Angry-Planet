@@ -8,6 +8,7 @@ enum MachineType {
   greener,        // Pollution reducer
   energyLinker,  // Energy transfer network
   itemLinker,    // Item transfer network
+  spaceship,  // End-game victory machine
 }
 
 extension MachineTypeExtension on MachineType {
@@ -29,13 +30,15 @@ extension MachineTypeExtension on MachineType {
         return 'Energy Linker';
       case MachineType.itemLinker:
         return 'Item Linker';
+      case MachineType.spaceship:
+        return 'Spaceship';
     }
   }
   
   String get description {
     switch (this) {
       case MachineType.burner:
-        return 'Generates energy from coal';
+        return 'Generates energy from coal or wood';
       case MachineType.digger:
         return 'Extracts ore from resource nodes';
       case MachineType.chopper:
@@ -50,6 +53,8 @@ extension MachineTypeExtension on MachineType {
         return 'Transfers energy between machines';
       case MachineType.itemLinker:
         return 'Transfers items between machines';
+      case MachineType.spaceship:
+        return 'Your ticket off this angry planet';
     }
   }
   

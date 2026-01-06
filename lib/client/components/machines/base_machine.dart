@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import '../../../shared/inventory/item_stack.dart';
 import '../../../shared/machines/machine_type.dart';
 import '../../../shared/machines/machine_stats.dart';
 import '../../../shared/inventory/inventory.dart';
@@ -148,6 +149,10 @@ abstract class BaseMachine extends SpriteComponent {
   /// Take item from output storage
   bool takeFromOutput(ResourceType resource, int amount) {
     return outputStorage.removeResource(resource, amount);
+  }
+
+  List<ItemStack> getAvailableOutputStacks() {
+    return outputStorage.getAllStacks();
   }
 
   /// Get current energy production (for display)

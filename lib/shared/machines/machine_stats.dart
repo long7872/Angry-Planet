@@ -5,7 +5,7 @@ import 'build_cost.dart';
 /// Stats for a specific machine type
 class MachineStats {
   final MachineType type;
-  final String description;
+  // final String description;
   final double energyConsumption;  // NE per second (0 = generator)
   final double energyProduction;    // NE per second (0 = consumer)
   final double pollutionRate;       // Pollution per second (+/-)
@@ -16,7 +16,7 @@ class MachineStats {
   
   const MachineStats({
     required this.type,
-    this.description = "",
+    // this.description = "",
     this.energyConsumption = 0,
     this.energyProduction = 0,
     this.pollutionRate = 0,
@@ -36,7 +36,7 @@ class MachineStats {
 const Map<MachineType, MachineStats> machineDefinitions = {
   MachineType.burner: MachineStats(
     type: MachineType.burner,
-    description: 'Generates energy from coal or wood',
+    // description: MachineType.burner.description,
     energyConsumption: 0,
     energyProduction: 20,  // 20 NE/s when burning
     pollutionRate: 5,      // +5 P/s when burning
@@ -50,7 +50,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.digger: MachineStats(
     type: MachineType.digger,
-    description: 'Extracts ore from resource nodes',
+    // description: 'Extracts ore from resource nodes',
     energyConsumption: 10,
     energyProduction: 0,
     pollutionRate: 3,
@@ -66,7 +66,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.chopper: MachineStats(
     type: MachineType.chopper,
-    description: 'Harvests wood from forests',
+    // description: 'Harvests wood from forests',
     energyConsumption: 10,
     energyProduction: 0,
     pollutionRate: 3,
@@ -78,7 +78,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.smelter: MachineStats(
     type: MachineType.smelter,
-    description: 'Processes ore into refined materials',
+    // description: 'Processes ore into refined materials',
     energyConsumption: 5,
     energyProduction: 0,
     pollutionRate: 5,
@@ -90,7 +90,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.holder: MachineStats(
     type: MachineType.holder,
-    description: 'Stores items',
+    // description: 'Stores items',
     energyConsumption: 1,
     energyProduction: 0,
     pollutionRate: 0,
@@ -102,7 +102,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.greener: MachineStats(
     type: MachineType.greener,
-    description: 'Reduces pollution',
+    // description: 'Reduces pollution',
     energyConsumption: 30,
     energyProduction: 0,
     pollutionRate: -10,
@@ -114,7 +114,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.energyLinker: MachineStats(
     type: MachineType.energyLinker,
-    description: 'Transfers energy between machines',
+    // description: 'Transfers energy between machines',
     energyConsumption: 5,
     energyProduction: 0,
     pollutionRate: 2,
@@ -126,7 +126,7 @@ const Map<MachineType, MachineStats> machineDefinitions = {
 
   MachineType.itemLinker: MachineStats(
     type: MachineType.itemLinker,
-    description: 'Transfers items between machines',
+    // description: 'Transfers items between machines',
     energyConsumption: 5,
     energyProduction: 0,
     pollutionRate: 2,
@@ -135,6 +135,19 @@ const Map<MachineType, MachineStats> machineDefinitions = {
     validPlacements: [ResourceType.none],
     buildCost: BuildCost(wood: 5, ironBar: 5),
   ),
+
+  MachineType.spaceship: MachineStats(
+    type: MachineType.spaceship,
+    // description: 'Your ticket off this angry planet',
+    energyConsumption: 0,  // No ongoing consumption
+    energyProduction: 0,
+    pollutionRate: 0,
+    storageCapacity: 20,  // Can hold 20 Energy Cubes
+    energyBuffer: 10000,  // Doesn't need power to operate
+    validPlacements: [ResourceType.none],
+    // buildCost: BuildCost(ironBar: 100, energyCube: 50, wood: 200, coal: 100),
+    buildCost: BuildCost(ironBar: 10, energyCube: 5, wood: 20, coal: 10),
+  )
 };
 
 MachineStats getMachineStats(MachineType type) {
