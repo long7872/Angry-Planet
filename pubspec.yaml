@@ -41,6 +41,7 @@ dependencies:
     supabase_flutter: ^2.10.3
     logger: ^2.6.2
     fast_noise: ^2.0.0
+    network_info_plus: ^7.0.0
 
 dev_dependencies:
     flutter_test:

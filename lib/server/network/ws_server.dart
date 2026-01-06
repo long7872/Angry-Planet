@@ -26,13 +26,22 @@ class ServerPlayer {
 }
 
 class AngryPlanetServer {
-  final world = WorldManager(12345);
+  final int port;
+  final int seed;
+  late final WorldManager world;
   final Map<String, ServerPlayer> _players = {};
   int _nextPlayerId = 0;
 
+  AngryPlanetServer({
+    this.port = 3333,
+    this.seed = 12345,
+  }) {
+    world = WorldManager(seed);
+  }
+
   Future<void> start() async {
-    final http = await HttpServer.bind(InternetAddress.loopbackIPv4, 3333);
-    print("🌍 Server running at ws://127.0.0.1:3333/ws");
+    final http = await HttpServer.bind(InternetAddress.anyIPv4, port);
+    print("🌍 Server running at ws://0.0.0.0:$port/ws (seed: $seed)");
 
     await for (var req in http) {
       if (req.uri.path == '/ws') {

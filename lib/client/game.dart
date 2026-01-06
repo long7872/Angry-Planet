@@ -142,22 +142,22 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     );
     await add(chunkLoader);
 
-    // ✓ Initialize game manager
+    // Initialize game manager
     gameManager = GameManager();
     await add(gameManager);
 
-    // ✓ Initialize inventory with starting resources
+    // Initialize inventory with starting resources
     inventory = Inventory(
       maxSlots: 50,        // 50 different item types
       maxStackSize: 200,   // 999 per stack (each resource type)
     );
     _giveStartingResources();
 
-    // ✓ Initialize machine registry (with game manager)
+    // Initialize machine registry (with game manager)
     machineRegistry = MachineRegistry(gameManager: gameManager);
     await add(machineRegistry);
 
-    // ✓ Initialize placement system
+    // Initialize placement system
     placementManager = PlacementStateManager(
       world: cworld,
       inventory: inventory,
@@ -166,7 +166,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     );
     await add(placementManager);
 
-    // ✓ Initialize machine interaction manager
+    // Initialize machine interaction manager
     machineInteractionManager = MachineInteractionManager(
       game: this,
       world: cworld,

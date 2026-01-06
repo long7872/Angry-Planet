@@ -22,7 +22,7 @@ class InventoryOverlay extends StatelessWidget {
           child: GestureDetector(
             onTap: () {}, // Prevent closing when tapping panel
             child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
+              width: MediaQuery.of(context).size.width * 0.5,
               height: MediaQuery.of(context).size.height * 0.7,
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -59,6 +59,7 @@ class InventoryOverlay extends StatelessWidget {
                               crossAxisCount: 4,
                               mainAxisSpacing: 15,
                               crossAxisSpacing: 15,
+                              childAspectRatio: 1,
                             ),
                             itemCount: inventory.getAllStacks().length,
                             itemBuilder: (context, index) {
@@ -107,7 +108,7 @@ class InventoryOverlay extends StatelessWidget {
               children: [
                 Icon(
                   _getStackIcon(stack),
-                  size: 40,
+                  size: 30,
                   color: Colors.white,
                 ),
                 SizedBox(height: 4),
@@ -137,7 +138,7 @@ class InventoryOverlay extends StatelessWidget {
                 '${stack.quantity}',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),

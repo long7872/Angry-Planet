@@ -16,6 +16,8 @@ class ChunkRenderer extends Component {
   final List<_RenderOp> _cache = [];
   bool _built = false;
 
+  final bool debugChunk = false;
+
   ChunkRenderer({
     required this.chunk,
     required this.spriteManager,
@@ -109,23 +111,25 @@ class ChunkRenderer extends Component {
     }
     
     // Debug: Draw chunk boundary in red
-    final debugPaint = Paint()
-      ..color = Colors.red.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    
-    final worldX = chunk.cx * Chunk.size * tileSize;
-    final worldY = chunk.cy * Chunk.size * tileSize;
-    
-    canvas.drawRect(
-      Rect.fromLTWH(
-        worldX,
-        worldY,
-        Chunk.size * tileSize,
-        Chunk.size * tileSize,
-      ),
-      debugPaint,
-    );
+    if (debugChunk) {
+      final debugPaint = Paint()
+        ..color = Colors.red.withOpacity(0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      
+      final worldX = chunk.cx * Chunk.size * tileSize;
+      final worldY = chunk.cy * Chunk.size * tileSize;
+      
+      canvas.drawRect(
+        Rect.fromLTWH(
+          worldX,
+          worldY,
+          Chunk.size * tileSize,
+          Chunk.size * tileSize,
+        ),
+        debugPaint,
+      );
+    }
   }
 
   void invalidate() {

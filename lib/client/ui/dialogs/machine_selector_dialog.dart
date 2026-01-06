@@ -28,112 +28,132 @@ class _MachineSelectorDialogState extends State<MachineSelectorDialog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.8,
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Color(0xFF2C2416),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Color(0xFF8B7355), width: 4),
-        ),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Color(0xFF3D3020),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.settings_input_component, color: Colors.orange, size: 28),
-                  SizedBox(width: 10),
-                  Text(
-                    'Select Machine',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
+      insetPadding: EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            width: MediaQuery.of(context).size.width * 0.85,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
             ),
-            
-            // Search bar
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-                style: TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search machines...',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  prefixIcon: Icon(Icons.search, color: Colors.orange),
-                  filled: true,
-                  fillColor: Color(0xFF3D3020),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
+            decoration: BoxDecoration(
+              color: Color(0xFF2C2416),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Color(0xFF8B7355), width: 4),
             ),
-            
-            // Machine count
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '${filteredMachines.length} machine${filteredMachines.length != 1 ? 's' : ''} available',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ),
-            
-            SizedBox(height: 10),
-            
-            // Machine list
-            Expanded(
-              child: filteredMachines.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ================= HEADER =================
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF3D3020),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
                         children: [
-                          Icon(Icons.search_off, color: Colors.white38, size: 48),
-                          SizedBox(height: 10),
+                          Icon(Icons.settings_input_component,
+                              color: Colors.orange, size: 28),
+                          SizedBox(width: 10),
                           Text(
-                            'No machines found',
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                            'Select Machine',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Spacer(),
+                          IconButton(
+                            icon: Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.of(context).pop(),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredMachines.length,
-                      itemBuilder: (context, index) {
-                        final machine = filteredMachines[index];
-                        return _buildMachineCard(machine);
-                      },
                     ),
+
+                    // ================= SEARCH =================
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: TextField(
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                          });
+                        },
+                        style: TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search machines...',
+                          hintStyle: TextStyle(color: Colors.white54),
+                          prefixIcon:
+                              Icon(Icons.search, color: Colors.orange),
+                          filled: true,
+                          fillColor: Color(0xFF3D3020),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // ================= COUNT =================
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        '${filteredMachines.length} machine${filteredMachines.length != 1 ? 's' : ''} available',
+                        style:
+                            TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ),
+
+                    SizedBox(height: 12),
+
+                    // ================= LIST =================
+                    if (filteredMachines.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Column(
+                          children: [
+                            Icon(Icons.search_off,
+                                color: Colors.white38, size: 48),
+                            SizedBox(height: 10),
+                            Text(
+                              'No machines found',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filteredMachines.length,
+                        itemBuilder: (context, index) {
+                          return _buildMachineCard(
+                              filteredMachines[index]);
+                        },
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
+
 
   List<BaseMachine> _filterMachines() {
     if (_searchQuery.isEmpty) {

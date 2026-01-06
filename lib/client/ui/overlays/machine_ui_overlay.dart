@@ -103,7 +103,7 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
               width: MediaQuery.of(context).size.width * 0.85,
               constraints: BoxConstraints(
                 maxHeight: screenHeight * 0.85,  // ✓ Max 85% of screen
-                minHeight: 400,                   // ✓ Min height
+                minHeight: 300,                   // ✓ Min height
               ),
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -142,24 +142,21 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
                     : null,
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header - Fixed at top
-                  _buildHeader(stats),
-                  SizedBox(height: 15),
-                  
-                  // Machine Stats - Fixed
-                  if (!isSpaceship) ...[
-                    _buildStats(),
-                    SizedBox(height: 15),
-                  ],
-                  
-                  // SCROLLABLE CONTENT AREA
                   Expanded(
-                    child: SingleChildScrollView(  // ADD THIS
+                    child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Header - Fixed at top
+                          _buildHeader(stats),
+                          SizedBox(height: 10),
+                          
+                          // Machine Stats - Fixed
+                          if (!isSpaceship) ...[
+                            _buildStats(),
+                            SizedBox(height: 10),
+                          ],
                           // Machine-specific content
                           if (isLinker)
                             _buildMachineSpecificInfo()
@@ -193,7 +190,7 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
                   ),
                   
                   // Close button - Fixed at bottom
-                  SizedBox(height: 15),
+                  SizedBox(height: 10),
                   _buildCloseButton(),
                 ],
               ),
