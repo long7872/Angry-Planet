@@ -4,6 +4,7 @@ import 'package:flame/sprite.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import '../../shared/player_data.dart';
+import '../managers/collision_manager.dart';
 
 enum PlayerDirection { down, right, left, up }
 enum PlayerState { idle, running }
@@ -23,6 +24,9 @@ class PlayerComponent extends PositionComponent {
   PlayerState currentState = PlayerState.idle;
   
   Vector2 velocity = Vector2.zero();
+
+  // Collision system
+  CollisionManager? collisionManager;
   
   PlayerComponent({
     required this.data,
@@ -34,6 +38,11 @@ class PlayerComponent extends PositionComponent {
           anchor: Anchor.center,
           priority: 100,
         );
+
+  /// Set collision manager
+  void setCollisionManager(CollisionManager manager) {
+    collisionManager = manager;
+  }
 
   @override
   Future<void> onLoad() async {
@@ -89,9 +98,27 @@ class PlayerComponent extends PositionComponent {
     
     // Update position and state
     if (!velocity.isZero()) {
-      position += velocity * dt;
-      data.x = position.x;
-      data.y = position.y;
+      // Calculate intended movement
+      final movement = velocity * dt;
+      final newPosition = position + movement;
+
+      // ✓ Check collision
+      if (collisionManager != null) {
+        if (collisionManager!.canMoveTo(newPosition, size)) {
+          // Free to move
+          position.setFrom(newPosition);
+          data.x = position.x;
+          data.y = position.y;
+        } else {
+          // Try sliding along obstacles
+          _trySlideMovement(movement);
+        }
+      } else {
+        // No collision manager - move freely
+        position.setFrom(newPosition);
+        data.x = position.x;
+        data.y = position.y;
+      }
       
       _updateDirection();
       currentState = PlayerState.running;
@@ -106,6 +133,35 @@ class PlayerComponent extends PositionComponent {
     
     // Update current animation
     currentAnimationTicker.update(dt);
+  }
+
+  /// Try to slide along obstacles
+  void _trySlideMovement(Vector2 movement) {
+    // Try moving only horizontally
+    if (movement.x != 0) {
+      final horizontalMove = Vector2(movement.x, 0);
+      final newPos = position + horizontalMove;
+      if (collisionManager!.canMoveTo(newPos, size)) {
+        position.add(horizontalMove);
+        data.x = position.x;
+        data.y = position.y;
+        return;
+      }
+    }
+    
+    // Try moving only vertically
+    if (movement.y != 0) {
+      final verticalMove = Vector2(0, movement.y);
+      final newPos = position + verticalMove;
+      if (collisionManager!.canMoveTo(newPos, size)) {
+        position.add(verticalMove);
+        data.x = position.x;
+        data.y = position.y;
+        return;
+      }
+    }
+    
+    // If both fail, don't move (blocked)
   }
 
   void _updateDirection() {

@@ -15,26 +15,36 @@ class CollisionManager {
   });
 
   /// Check if player can move to a position
-  bool canMoveTo(Vector2 newPosition) {
-    // Convert to tile position
-    final tileX = (newPosition.x / 16).floor();
-    final tileY = (newPosition.y / 16).floor();
+  bool canMoveTo(Vector2 position, Vector2 size) {
+    // Check all corners and center of player hitbox
+    final halfSize = size / 2;
+    final checkPoints = [
+      position,  // Center
+      position + Vector2(-halfSize.x + 2, -halfSize.y + 2),  // Top-left (with margin)
+      position + Vector2(halfSize.x - 2, -halfSize.y + 2),   // Top-right (with margin)
+      position + Vector2(-halfSize.x + 2, halfSize.y - 2),   // Bottom-left (with margin)
+      position + Vector2(halfSize.x - 2, halfSize.y - 2),    // Bottom-right (with margin)
+    ];
 
-    final tilePos = Vector2(
-      tileX.toDouble(),
-      tileY.toDouble(),
-    );
-    
-    // Check forest collision
-    if (_isForestTile(tilePos)) {
-      return false;
+    for (final point in checkPoints) {
+      final tileX = (point.x / 16).floor();
+      final tileY = (point.y / 16).floor();
+
+      final tilePos = Vector2(
+        tileX.toDouble(),
+        tileY.toDouble(),
+      );
+      
+      // Check forest collision
+      if (_isForestTile(tilePos)) {
+        return false;
+      }
+      
+      // Check machine collision
+      if (_hasMachineAt(tileX, tileY)) {
+        return false;
+      }
     }
-    
-    // Check machine collision
-    if (_hasMachineAt(tileX, tileY)) {
-      return false;
-    }
-    
     return true;
   }
 
@@ -75,27 +85,27 @@ class CollisionManager {
   }
 
   /// Check if a rectangle collides with any obstacles
-  bool isRectangleBlocked(Vector2 topLeft, Vector2 size) {
-    // Check all corners of the rectangle
-    final corners = [
-      topLeft,  // Top-left
-      topLeft + Vector2(size.x, 0),  // Top-right
-      topLeft + Vector2(0, size.y),  // Bottom-left
-      topLeft + size,  // Bottom-right
-    ];
+  // bool isRectangleBlocked(Vector2 topLeft, Vector2 size) {
+  //   // Check all corners of the rectangle
+  //   final corners = [
+  //     topLeft,  // Top-left
+  //     topLeft + Vector2(size.x, 0),  // Top-right
+  //     topLeft + Vector2(0, size.y),  // Bottom-left
+  //     topLeft + size,  // Bottom-right
+  //   ];
     
-    for (final corner in corners) {
-      if (!canMoveTo(corner)) {
-        return true;
-      }
-    }
+  //   for (final corner in corners) {
+  //     if (!canMoveTo(corner)) {
+  //       return true;
+  //     }
+  //   }
     
-    // Check center
-    final center = topLeft + size / 2;
-    if (!canMoveTo(center)) {
-      return true;
-    }
+  //   // Check center
+  //   final center = topLeft + size / 2;
+  //   if (!canMoveTo(center)) {
+  //     return true;
+  //   }
     
-    return false;
-  }
+  //   return false;
+  // }
 }

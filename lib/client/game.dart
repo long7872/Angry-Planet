@@ -6,6 +6,7 @@ import '../shared/inventory/inventory.dart';
 import '../shared/machines/machine_type.dart';
 import '../shared/resources/resource_type.dart';
 import '../shared/game/game_manager.dart';
+import 'managers/collision_manager.dart';
 import 'managers/machine_interaction_manager.dart';
 import 'managers/machine_repair_manager.dart';
 import 'managers/placement_state_manager.dart';
@@ -42,6 +43,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final MachineRegistry machineRegistry;
   late final MachineInteractionManager machineInteractionManager;
   late final MachineRepairManager machineRepairManager;
+  late final CollisionManager collisionManager;
   
   // Player components
   late final PlayerComponent localPlayer;
@@ -177,6 +179,13 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       world: cworld,
     );
     await add(machineRepairManager);
+
+    // Initialize collision manager
+    collisionManager = CollisionManager(
+      world: cworld,
+      getMachines: () => machineRegistry.getAllMachines(),
+    );
+    localPlayer.setCollisionManager(collisionManager);
 
     // Register overlays
     _registerOverlays();
