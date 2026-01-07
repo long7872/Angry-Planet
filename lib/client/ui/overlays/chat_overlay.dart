@@ -159,7 +159,8 @@ class _ChatOverlayState extends State<ChatOverlay> {
 
   Widget _buildMessageBubble(ChatMessage msg) {
     final timeStr = '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}';
-    
+    final isAI = msg.playerName == 'AI Assistant';
+
     return Padding(
       padding: EdgeInsets.only(bottom: 8),
       child: Column(
@@ -170,10 +171,14 @@ class _ChatOverlayState extends State<ChatOverlay> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!msg.isMe) ...[
+                if (isAI)
+                  Icon(Icons.smart_toy, color: Colors.purple, size: 12),
+                if (isAI)
+                  SizedBox(width: 4),
                 Text(
                   msg.playerName,
                   style: TextStyle(
-                    color: Colors.cyan,
+                    color: isAI ? Colors.purple : Colors.cyan,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -201,18 +206,22 @@ class _ChatOverlayState extends State<ChatOverlay> {
             ],
           ),
           SizedBox(height: 4),
-          
+
           // Message bubble
           Container(
             constraints: BoxConstraints(maxWidth: 250),
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: msg.isMe 
-                  ? Colors.cyan.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+              color: isAI
+                  ? Colors.purple.withOpacity(0.2)
+                  : msg.isMe
+                      ? Colors.cyan.withOpacity(0.3)
+                      : Colors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: msg.isMe ? Colors.cyan.withOpacity(0.5) : Colors.white.withOpacity(0.2),
+                color: isAI
+                    ? Colors.purple.withOpacity(0.5)
+                    : msg.isMe ? Colors.cyan.withOpacity(0.5) : Colors.white.withOpacity(0.2),
                 width: 1,
               ),
             ),
@@ -246,7 +255,7 @@ class _ChatOverlayState extends State<ChatOverlay> {
               controller: _messageController,
               style: TextStyle(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Type a message...',
+                hintText: 'Type a message... (use @AI for help)',
                 hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
                 filled: true,
                 fillColor: Colors.black.withOpacity(0.3),

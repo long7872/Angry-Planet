@@ -37,6 +37,7 @@ import 'player/player_component.dart';
 import 'input/player_input_handler.dart';
 import '../shared/player_data.dart';
 import 'dart:async' as time;
+import 'services/ai_assistant_service.dart';
 
 class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final ClientSocket socket;
@@ -249,6 +250,9 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     // Register overlays
     _registerOverlays();
 
+    // Initialize AI Assistant
+    await AIAssistantService.instance.initialize();
+
     // Show HUD by default
     overlays.add('hud');
 
@@ -419,11 +423,59 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   }
 
   // Send chat message
-  void sendChatMessage(String message) {
+  void sendChatMessage(String message) async {
+    // Check if this is an AI mention
+    if (message.trim().startsWith('@AI ')) {
+      // Extract the question (remove @AI prefix)
+      final question = message.trim().substring(4).trim();
+
+      if (question.isEmpty) {
+        _addLocalChatMessage('AI Assistant', '💡 Ask me anything about the game! For example: "@AI how do I generate energy?"');
+        return;
+      }
+
+      // Add user's question to chat
+      chatMessages.add(ChatMessage(
+        playerName: 'You',
+        message: message,
+        timestamp: DateTime.now(),
+        isMe: true,
+      ));
+
+      // Add "AI is thinking..." placeholder
+      chatMessages.add(ChatMessage(
+        playerName: 'AI Assistant',
+        message: '🤔 Thinking...',
+        timestamp: DateTime.now(),
+        isMe: false,
+      ));
+
+      // Get AI response
+      final aiService = AIAssistantService.instance;
+      final response = await aiService.askAI(question);
+
+      // Remove "thinking" message and add real response
+      chatMessages.removeLast();
+      _addLocalChatMessage('AI Assistant', response);
+
+      return;
+    }
+
+    // Normal chat message - send to server
     socket.send(jsonEncode({
       'type': NetworkMessage.chatMessage,
       'message': message,
     }));
+  }
+
+  // Helper to add local chat message
+  void _addLocalChatMessage(String playerName, String message) {
+    chatMessages.add(ChatMessage(
+      playerName: playerName,
+      message: message,
+      timestamp: DateTime.now(),
+      isMe: false,
+    ));
   }
 
   // Handle remote machine placement

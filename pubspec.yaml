@@ -42,6 +42,8 @@ dependencies:
     logger: ^2.6.2
     fast_noise: ^2.0.0
     network_info_plus: ^7.0.0
+    google_generative_ai: ^0.4.6
+    http: ^1.2.0
 
 dev_dependencies:
     flutter_test:
