@@ -2,6 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/machines/machine_type.dart';
+import '../../render/icon_sprite_generator.dart';
+import '../../utils/icon_data.dart';
 
 /// Ghost preview for machine placement
 class GhostPreview extends PositionComponent {
@@ -26,8 +28,14 @@ class GhostPreview extends PositionComponent {
   Future<void> onLoad() async {
     
     try {
-      final image = await game.images.load('items/${machineType.name}.png');
-      ghostSprite = Sprite(image);
+      // final image = await game.images.load('items/${machineType.name}.png')
+      // print('Using icon for ${machineType.name}');
+      final image = await IconSpriteGenerator.fromIcon(
+        getMachineIcon(machineType),
+        size: 16.0,  // Match your tile size
+        color: getMachineColor(machineType),
+      );;
+      ghostSprite = image;
     } catch (e) {
       // Fallback to placeholder
       try {

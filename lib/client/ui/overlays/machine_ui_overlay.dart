@@ -882,9 +882,9 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
     return Column(
       children: [
         _buildSmelterProcessingBanner(smelter),
-        const SizedBox(height: 15),
+        const SizedBox(height: 5),
         _buildRecipeSelector(smelter, availableRecipes),
-        const SizedBox(height: 15),
+        const SizedBox(height: 5),
         Expanded(child: _buildRecipeDetails(smelter)),
       ],
     );
@@ -1511,8 +1511,8 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
   Widget _buildCloseButton() {
     return ElevatedButton(
       onPressed: widget.onClose,
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      child: const Text('Close', style: TextStyle(fontSize: 20, color: Colors.white)),
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      child: const Text('Close', style: TextStyle(fontSize: 14, color: Colors.white)),
     );
   }
 }

@@ -43,3 +43,27 @@ IconData getMachineIcon(MachineType type) {
         return Icons.help;
     }
   }
+
+// Get color for each machine type
+  Color getMachineColor(MachineType type) {
+    switch (type) {
+      case MachineType.burner:
+        return Colors.orange;
+      case MachineType.digger:
+        return Colors.brown;
+      case MachineType.chopper:
+        return Colors.green;
+      case MachineType.smelter:
+        return Colors.red;
+      case MachineType.holder:
+        return Colors.blue;
+      case MachineType.greener:
+        return Colors.lightGreen;
+      case MachineType.energyLinker:
+        return Colors.yellow;
+      case MachineType.itemLinker:
+        return Colors.cyan;
+      case MachineType.spaceship:
+        return Colors.purple;
+    }
+  }

@@ -9,6 +9,8 @@ import '../../../shared/machines/machine_stats.dart';
 import '../../../shared/inventory/inventory.dart';
 import '../../../shared/resources/resource_type.dart';
 import '../../../shared/game/energy_system.dart';
+import '../../render/icon_sprite_generator.dart';
+import '../../utils/icon_data.dart';
 import 'machine_health_bar.dart';
 
 /// Base class for all machines
@@ -114,7 +116,13 @@ abstract class BaseMachine extends SpriteComponent {
     // TODO: Load actual machine sprites
     // For now, use placeholder
     try {
-      return await Sprite.load('items/${machineType.name}.png');
+      // return await Sprite.load('items/${machineType.name}.png');
+      print('Using icon for ${machineType.name}');
+      return await IconSpriteGenerator.fromIcon(
+        getMachineIcon(machineType),
+        size: 16.0,  // Match your tile size
+        color: getMachineColor(machineType),
+      );
     } catch (e) {
       // Fallback to colored rectangle
       return await Sprite.load('items/placeholder.png');

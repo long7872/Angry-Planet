@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:angry_planet/shared/machines/machine_type.dart';
 import 'package:flame/components.dart';
-import 'package:flame/game.dart';
 
 import 'acid_rain_event.dart';
 import 'game_tick.dart';
