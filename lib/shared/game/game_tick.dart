@@ -20,5 +20,8 @@ class GameTick {
   }
 
   int get tickCount => _tickCount;
+  void setTickCount(int tick) {
+    _tickCount = tick;
+  }
   double get progress => _accumulator / tickInterval;
 }

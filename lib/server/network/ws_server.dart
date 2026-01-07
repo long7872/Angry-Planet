@@ -34,6 +34,10 @@ class AngryPlanetServer {
 
   final Map<String, Map<String, dynamic>> _machines = {};
 
+  Timer? _stateSyncTimer;
+
+  bool isSentHost = false;
+
   AngryPlanetServer({
     this.port = 3333,
     this.seed = 12345,
@@ -51,6 +55,36 @@ class AngryPlanetServer {
         _handleClient(socket);
       }
     }
+
+    // Start periodic state sync (every 1 second)
+    _startStateSyncTimer();
+  }
+
+  // Periodic state sync
+  void _startStateSyncTimer() {
+    _stateSyncTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      _syncAllMachineStates();
+    });
+  }
+
+  // Sync all machine states to all clients
+  void _syncAllMachineStates() {
+    if (_machines.isEmpty) return;
+    
+    final machineStates = _machines.values.map((m) => m['state']).toList();
+    
+    final message = jsonEncode({
+      'type': NetworkMessage.machineStateSync,
+      'states': machineStates,
+    });
+    
+    for (final player in _players.values) {
+      try {
+        player.socket.add(message);
+      } catch (e) {
+        // Ignore errors for disconnected players
+      }
+    }
   }
 
   void _handleClient(WebSocket socket) {
@@ -60,14 +94,14 @@ class AngryPlanetServer {
     final player = ServerPlayer(playerId, playerName, socket);
     _players[playerId] = player;
     
-    print("👤 $playerName joined (${_players.length} players)");
+    // print("👤 $playerName joined (${_players.length} players)");
 
     // Send player their ID
-    socket.add(jsonEncode({
-      'type': NetworkMessage.playerJoined,
-      'id': playerId,
-      'name': playerName,
-    }));
+    // socket.add(jsonEncode({
+    //   'type': NetworkMessage.playerJoined,
+    //   'id': playerId,
+    //   'name': playerName,
+    // }));
 
     // Send existing players
     for (final p in _players.values) {
@@ -91,15 +125,24 @@ class AngryPlanetServer {
       (data) {
         final msg = jsonDecode(data);
 
+        if (msg['type'] == NetworkMessage.hello) {
+          print("👤 $playerName joined (${_players.length} players)");
+          socket.add(jsonEncode({
+            'type': NetworkMessage.playerJoined,
+            'id': playerId,
+            'name': playerName,
+          }));
+
+          print('🤝 Handshake completed for $playerName');
+          return;
+        }
         // Handle set_player_name
-        if (msg['type'] == NetworkMessage.setPlayerName) {
+        else if (msg['type'] == NetworkMessage.setPlayerName) {
           final newName = msg['name'] as String?;
           if (newName != null && newName.isNotEmpty && newName.length <= 20) {
             final oldName = player.name;
             player.name = newName;
             print("👤 Player renamed: $oldName → $newName");
-            
-            // Broadcast name update to all players
             _broadcastPlayerUpdate(playerId);
           }
         } else if (msg['type'] == NetworkMessage.getChunk) {
@@ -111,6 +154,13 @@ class AngryPlanetServer {
             'data': chunk.toJson(),
           }));
         } 
+
+        else if (msg['type'] == NetworkMessage.chatMessage) {
+          final message = msg['message'] as String;
+          
+          // Broadcast to ALL players (including sender)
+          _broadcastChatMessage(playerId, player.name, message);
+        }
         // Handle machine placement
         else if (msg['type'] == NetworkMessage.machinePlace) {
           final machineData = {
@@ -119,6 +169,7 @@ class AngryPlanetServer {
             'x': msg['x'],
             'y': msg['y'],
             'placedBy': playerId,
+            'state': msg['state'] ?? {},
           };
           
           _machines[msg['id']] = machineData;
@@ -144,6 +195,26 @@ class AngryPlanetServer {
             _broadcastMachineUpdate(playerId, machineId, msg['state']);
           }
         }
+        // Handle machine state update from client
+        else if (msg['type'] == NetworkMessage.machineStateUpdate) {
+          final machineId = msg['id'] as String;
+          final state = msg['state'] as Map<String, dynamic>;
+          
+          if (_machines.containsKey(machineId)) {
+            _machines[machineId]!['state'] = state;
+            
+            // Broadcast to other players
+            _broadcastMachineStateUpdate(playerId, machineId, state);
+          }
+        }
+        // Handle game tick from host
+        else if (msg['type'] == NetworkMessage.gameTick) {
+          // Host sends tick, relay to all other players
+          final tick = msg['tick'] as int;
+          print('⏱️ Host tick: $tick');
+          
+          _broadcastGameTick(playerId, tick);
+        }
         else if (msg['type'] == NetworkMessage.playerUpdate) {
           // Update player position
           player.x = (msg['x'] as num).toDouble();
@@ -164,6 +235,27 @@ class AngryPlanetServer {
         _players.remove(playerId);
       },
     );
+  }
+
+  // Broadcast chat message to all players
+  void _broadcastChatMessage(String fromPlayerId, String playerName, String message) {
+    print('💬 Chat from $playerName: $message');
+    
+    final chatMessage = jsonEncode({
+      'type': NetworkMessage.chatMessage,
+      'playerId': fromPlayerId,
+      'playerName': playerName,
+      'message': message,
+    });
+
+    // Send to ALL players (including sender for confirmation)
+    for (final p in _players.values) {
+      try {
+        p.socket.add(chatMessage);
+      } catch (e) {
+        // Ignore disconnected players
+      }
+    }
   }
 
   // Broadcast machine placement
@@ -221,6 +313,44 @@ class AngryPlanetServer {
     }
   }
 
+  // Broadcast single machine state update
+  void _broadcastMachineStateUpdate(String fromPlayerId, String machineId, Map<String, dynamic> state) {
+    final message = jsonEncode({
+      'type': NetworkMessage.machineStateUpdate,
+      'id': machineId,
+      'state': state,
+    });
+    
+    for (final p in _players.values) {
+      if (p.id != fromPlayerId) {
+        try {
+          p.socket.add(message);
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+  }
+
+  // Broadcast game tick from host to other players
+  void _broadcastGameTick(String fromPlayerId, int tick) {
+    final message = jsonEncode({
+      'type': NetworkMessage.gameTick,
+      'tick': tick,
+    });
+
+    for (final p in _players.values) {
+      // Send to everyone EXCEPT the host
+      if (p.id != fromPlayerId) {
+        try {
+          p.socket.add(message);
+        } catch (e) {
+          // Ignore disconnected players
+        }
+      }
+    }
+  }
+
   void _broadcastPlayerUpdate(String updatedPlayerId) {
     final player = _players[updatedPlayerId];
     if (player == null) return;
@@ -240,5 +370,11 @@ class AngryPlanetServer {
         }
       }
     }
+  }
+
+  void stop() {
+    _stateSyncTimer?.cancel();
+    _stateSyncTimer = null;
+    print('🛑 Server stopped');
   }
 }

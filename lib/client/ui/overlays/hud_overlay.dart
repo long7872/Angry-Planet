@@ -4,6 +4,7 @@ class HudOverlay extends StatelessWidget {
   final VoidCallback onBaloPressed;
   final VoidCallback onItemPressed;
   final VoidCallback onRepairPressed;
+  final VoidCallback onChatPressed;
   final bool isRepairMode;
 
   const HudOverlay({
@@ -12,6 +13,7 @@ class HudOverlay extends StatelessWidget {
     required this.onItemPressed,
     required this.onRepairPressed,
     required this.isRepairMode,
+    required this.onChatPressed,
   }) : super(key: key);
 
   @override
@@ -25,7 +27,15 @@ class HudOverlay extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ✓ NEW: Repair Button
+              // Chat Button
+              _buildButton(
+                onPressed: onChatPressed,
+                icon: Icons.chat,
+                color: Colors.cyan,
+                isActive: false,
+              ),
+              SizedBox(width: 12),
+              // Repair Button
               _buildButton(
                 onPressed: onRepairPressed,
                 icon: Icons.build_circle,

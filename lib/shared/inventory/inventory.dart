@@ -13,6 +13,37 @@ class Inventory {
     this.maxStackSize = 999,
   });
 
+  /// Server-authoritative sync (NO CLEAR, NO GLITCH)
+  void syncFromServer(Map<ResourceType, int> serverData) {
+    // 1. Update / add
+    for (final entry in serverData.entries) {
+      final resource = entry.key;
+      final serverAmount = entry.value;
+      final localAmount = getResourceQuantity(resource);
+
+      final delta = serverAmount - localAmount;
+
+      if (delta > 0) {
+        addResource(resource, delta);
+      } 
+      else if (delta < 0) {
+        removeResource(resource, -delta);
+      }
+    }
+
+    // 2. Remove resources not on server
+    final localResources = getAllStacks()
+        .map((s) => s.asResource)
+        .whereType<ResourceType>()
+        .toList();
+
+    for (final resource in localResources) {
+      if (!serverData.containsKey(resource)) {
+        removeResource(resource, getResourceQuantity(resource));
+      }
+    }
+  }
+
   /// Add resource to inventory
   /// Returns true if fully added, false if some/all couldn't be added
   bool addResource(ResourceType resource, int amount) {
@@ -158,4 +189,9 @@ class Inventory {
   bool get isEmpty => _stacks.isEmpty;
   int get usedSlots => _stacks.length;
   int get freeSlots => maxSlots - usedSlots;
+
+  /// Clear all inventory stacks
+  void clear() {
+    _stacks.clear();
+  }
 }

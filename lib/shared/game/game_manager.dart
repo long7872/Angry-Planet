@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flame/components.dart';  // ✓ ADD THIS
+import 'package:flame/components.dart';  // ADD THIS
 import '../machines/machine_type.dart';
 import 'acid_rain_event.dart';
 import 'game_tick.dart';
@@ -10,7 +10,7 @@ import '../../client/managers/machine_registry.dart';
 import '../../client/components/machines/base_machine.dart';
 
 /// Main game manager - coordinates all systems
-class GameManager extends Component {  // ✓ EXTEND Component
+class GameManager extends Component {  // EXTEND Component
   final GameTick gameTick = GameTick();
   final EnergyNetwork energyNetwork = EnergyNetwork();
   final PollutionSystem pollutionSystem = PollutionSystem();
@@ -20,6 +20,9 @@ class GameManager extends Component {  // ✓ EXTEND Component
   
   MachineRegistry? _machineRegistry;
 
+  bool isHost = false; 
+  Function()? onTickBroadcast;
+
   /// Register machine registry
   void registerMachineRegistry(MachineRegistry registry) {
     _machineRegistry = registry;
@@ -28,12 +31,29 @@ class GameManager extends Component {  // ✓ EXTEND Component
 
   @override
   void update(double dt) {
-    super.update(dt);  // ✓ Call super
+    super.update(dt);  // Call super
+
+    // Only host runs automatic ticks
+    if (!isHost) return;
     
     // Check if we should execute a tick
     if (gameTick.update(dt)) {
       onTick();
+
+      // Broadcast tick to other players
+      if (onTickBroadcast != null) {
+        onTickBroadcast!();
+      }
     }
+  }
+
+  /// Execute tick from host (for clients)
+  void executeHostTick(int hostTickCount) {
+    // Sync our tick count to host
+    gameTick.setTickCount(hostTickCount);
+    
+    // Execute the tick
+    onTick();
   }
 
   /// Execute one game tick (happens every second)

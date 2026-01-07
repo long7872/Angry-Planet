@@ -10,7 +10,10 @@ import '../shared/network_messages.dart';
 import '../shared/resources/resource_type.dart';
 import '../shared/game/game_manager.dart';
 import 'components/machines/base_machine.dart';
+import 'components/machines/energy_linker_machine.dart';
+import 'components/machines/item_linker_machine.dart';
 import 'components/machines/machine_factory.dart';
+import 'components/machines/machine_state.dart';
 import 'managers/collision_manager.dart';
 import 'managers/machine_interaction_manager.dart';
 import 'managers/machine_repair_manager.dart';
@@ -19,6 +22,7 @@ import 'managers/machine_registry.dart';
 import 'managers/multiplayer_manager.dart';
 import 'managers/position_sync.dart';
 import 'network/ws_client.dart';
+import 'ui/overlays/chat_overlay.dart';
 import 'ui/overlays/hud_overlay.dart';
 import 'ui/overlays/inventory_overlay.dart';
 import 'ui/overlays/machine_selection_row.dart';
@@ -32,6 +36,7 @@ import 'render/sprite_manager.dart';
 import 'player/player_component.dart';
 import 'input/player_input_handler.dart';
 import '../shared/player_data.dart';
+import 'dart:async' as time;
 
 class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final ClientSocket socket;
@@ -50,6 +55,15 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final MachineInteractionManager machineInteractionManager;
   late final MachineRepairManager machineRepairManager;
   late final CollisionManager collisionManager;
+
+  final List<ChatMessage> chatMessages = [];  // ✓ ADD
+  bool isChatOpen = false;
+
+  // bool _useServerTick = true;
+  bool isHost = false;  
+  String? myPlayerId; 
+
+  time.Timer? _stateUpdateTimer;
   
   // Player components
   late final PlayerComponent localPlayer;
@@ -105,7 +119,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       name: playerName,
     );
 
-    _sendPlayerName();
+    // _sendPlayerName();
     
     localPlayer = PlayerComponent(
       data: playerData,
@@ -138,6 +152,10 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
 
     _setupMachineNetworkListeners();
 
+    socket.send(jsonEncode({
+      'type': NetworkMessage.hello,
+    }));
+
     // Camera controller
     cameraController = CameraController(
       camera: camera,
@@ -160,6 +178,16 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     gameManager = GameManager();
     await add(gameManager);
 
+    // Set up tick broadcast (host only)
+    gameManager.onTickBroadcast = () {
+      if (isHost) {
+        socket.send(jsonEncode({
+          'type': NetworkMessage.gameTick,
+          'tick': gameManager.gameTick.tickCount,
+        }));
+      }
+    };
+
     // Initialize inventory with starting resources
     inventory = Inventory(
       maxSlots: 50,        // 50 different item types
@@ -171,6 +199,13 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     machineRegistry = MachineRegistry(gameManager: gameManager);
     await add(machineRegistry);
 
+    // Set host status after we know our player ID
+    // This will be set when we receive player_joined message
+    Future.delayed(Duration(milliseconds: 1000), () {
+      print("Setttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt");
+      gameManager.isHost = isHost;
+    });
+
     // Initialize placement system
     placementManager = PlacementStateManager(
       world: cworld,
@@ -179,6 +214,9 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       machineRegistry: machineRegistry,
     );
     await add(placementManager);
+
+    // Start periodic state updates (every 0.5 seconds)
+    _startStateUpdateTimer();
 
     // Initialize machine interaction manager
     machineInteractionManager = MachineInteractionManager(
@@ -213,12 +251,12 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   // Send player name to server
   void _sendPlayerName() {
     socket.send(jsonEncode({
-      'type': 'set_player_name',
+      'type': NetworkMessage.setPlayerName,
       'name': playerName,
     }));
   }
 
-  // ✓ ADD: Setup machine network listeners
+  // Setup machine network listeners
   void _setupMachineNetworkListeners() {
     socket.onMessage((message) {
       try {
@@ -237,10 +275,77 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
             _handleRemoteMachinePlace(machineData);
           }
         }
+        // Handle state sync from server
+        else if (data['type'] == NetworkMessage.machineStateSync) {
+          final states = data['states'] as List;
+          for (final stateData in states) {
+            _applyMachineState(stateData);
+          }
+        }
+        
+        // Handle single state update
+        else if (data['type'] == NetworkMessage.machineStateUpdate) {
+          _applyMachineState(data['state']);
+        }
+
+        // Detect if we're host (first player)
+        else if (data['type'] == NetworkMessage.playerJoined) {
+          myPlayerId = data['id'];
+          // First player (player_0) is host
+          isHost = myPlayerId == 'player_0';
+          print(isHost ? '👑 I am HOST' : '👥 I am CLIENT');
+
+          _sendPlayerName();
+        }
+        
+        // Receive tick from host
+        else if (data['type'] == NetworkMessage.gameTick && !isHost) {
+          final hostTick = data['tick'] as int;
+          gameManager.executeHostTick(hostTick);
+        }
+
+        else if (data['type'] == NetworkMessage.chatMessage) {
+          _handleChatMessage(data);
+        }
       } catch (e) {
         print('❌ Error handling machine message: $e');
       }
     });
+  }
+
+  // Handle incoming chat message
+  void _handleChatMessage(Map<String, dynamic> data) {
+    final playerName = data['playerName'] as String;
+    final message = data['message'] as String;
+    final isMe = data['playerId'] == myPlayerId;
+    
+    chatMessages.add(ChatMessage(
+      playerName: playerName,
+      message: message,
+      timestamp: DateTime.now(),
+      isMe: isMe,
+    ));
+    
+    // Limit to 100 messages
+    if (chatMessages.length > 100) {
+      chatMessages.removeAt(0);
+    }
+    
+    // Refresh chat overlay if open
+    if (isChatOpen) {
+      overlays.remove('chat');
+      overlays.add('chat');
+    }
+    
+    print('💬 Chat: [$playerName] $message');
+  }
+
+  // Send chat message
+  void sendChatMessage(String message) {
+    socket.send(jsonEncode({
+      'type': NetworkMessage.chatMessage,
+      'message': message,
+    }));
   }
 
   // Handle remote machine placement
@@ -256,6 +361,8 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     );
     
     final machineId = machineData['id'] as String;
+
+    MachineFactory.syncNextMachineId(machineId);
 
     // Avoid duplicate
     if (machineRegistry.getMachineById(machineId) != null) {
@@ -298,6 +405,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       'machineType': machine.machineType.name,
       'x': machine.tilePosition.x,
       'y': machine.tilePosition.y,
+      'state': MachineState.toJson(machine),
     }));
   }
 
@@ -307,6 +415,29 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       'type': NetworkMessage.machineDestroy,
       'id': machineId,
     }));
+  }
+
+
+  // Periodic state updates
+  void _startStateUpdateTimer() {
+    _stateUpdateTimer = time.Timer.periodic(Duration(milliseconds: 500), (timer) {
+      _sendMachineStates();
+    });
+  }
+  
+  // Send all machine states to server
+  void _sendMachineStates() {
+    final machines = machineRegistry.getAllMachines();
+    
+    for (final machine in machines) {
+      final state = MachineState.toJson(machine);
+      
+      socket.send(jsonEncode({
+        'type': NetworkMessage.machineStateUpdate,
+        'id': machine.machineId,
+        'state': state,
+      }));
+    }
   }
 
   void _giveStartingResources() {
@@ -349,7 +480,29 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
           overlays.remove('hud');
           overlays.add('hud');
         },
+
+        onChatPressed: () {
+          if (isChatOpen) {
+            overlays.remove('chat');
+            isChatOpen = false;
+          } else {
+            overlays.add('chat');
+            isChatOpen = true;
+          }
+        },
         isRepairMode: machineRepairManager.isRepairMode,
+      );
+    });
+
+    // ✓ ADD: Chat overlay
+    overlays.addEntry('chat', (context, game) {
+      return ChatOverlay(
+        messages: chatMessages,
+        onSendMessage: (message) => sendChatMessage(message),
+        onClose: () {
+          overlays.remove('chat');
+          isChatOpen = false;
+        },
       );
     });
 
@@ -440,12 +593,35 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     });
   }
 
+  // Apply received state to local machine
+  void _applyMachineState(Map<String, dynamic> stateData) {
+    final machineId = stateData['id'] as String;
+    final machine = machineRegistry.getMachineById(machineId);
+    
+    if (machine != null) {
+      MachineState.fromJson(machine, stateData);
+
+      // Resolve linker references after applying state
+      if (machine is ItemLinkerMachine) {
+        machine.resolveReferences(machineRegistry);
+      } else if (machine is EnergyLinkerMachine) {
+        machine.resolveReferences(machineRegistry);
+      }
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
     
     // ✓ Update game manager (ticks machines, energy, pollution)
     gameManager.update(dt);
+  }
+
+  @override
+  void onRemove() {
+    _stateUpdateTimer?.cancel();  // Cleanup
+    super.onRemove();
   }
 
   @override

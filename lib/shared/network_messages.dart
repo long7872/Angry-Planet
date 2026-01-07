@@ -10,6 +10,14 @@ class NetworkMessage {
   static const String machineDestroy = 'machine_destroy';
   static const String machineSync = 'machine_sync';
   static const String machineUpdate = 'machine_update';
+
+  static const String machineStateSync = 'machine_state_sync';
+  static const String machineStateUpdate = 'machine_state_update';
+
+  static const String hello = 'hello';
+  static const String gameTick = 'game_tick';
+
+  static const String chatMessage = 'chat_message';
 }
 
 class PlayerUpdateMessage {

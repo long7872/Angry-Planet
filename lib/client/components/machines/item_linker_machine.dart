@@ -1,3 +1,4 @@
+import '../../managers/machine_registry.dart';
 import 'base_machine.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -9,8 +10,13 @@ import 'smelter_machine.dart';
 
 /// Item Linker - Transfers items between machines using pull-based logic
 class ItemLinkerMachine extends BaseMachine {
+  // Local references (fast access, no lookups)
   BaseMachine? sourceMachine;
   List<BaseMachine?> targetMachines = [null, null, null, null];
+
+  // Network-syncable IDs
+  String? sourceMachineId;
+  List<String?> targetMachineIds = [null, null, null, null];
   
   // Transfer rate: 1 item per tick (distributed round-robin)
   static const int itemsPerTick = 1;
@@ -33,6 +39,25 @@ class ItemLinkerMachine extends BaseMachine {
           game: game,
           machineId: machineId,
         );
+  
+  // Resolve IDs to references (called when receiving network state)
+  void resolveReferences(MachineRegistry registry) {
+    // Resolve source
+    if (sourceMachineId != null) {
+      sourceMachine = registry.getMachineById(sourceMachineId!);
+    } else {
+      sourceMachine = null;
+    }
+    
+    // Resolve targets
+    for (int i = 0; i < targetMachineIds.length; i++) {
+      if (targetMachineIds[i] != null) {
+        targetMachines[i] = registry.getMachineById(targetMachineIds[i]!);
+      } else {
+        targetMachines[i] = null;
+      }
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -189,6 +214,7 @@ class ItemLinkerMachine extends BaseMachine {
     }
     
     sourceMachine = machine;
+    sourceMachineId = machine?.machineId;
     _lastTransferSuccessful = false;  // ✓ Reset transfer status
     
     if (machine != null) {
@@ -211,6 +237,7 @@ class ItemLinkerMachine extends BaseMachine {
     }
     
     targetMachines[slot] = machine;
+    targetMachineIds[slot] = machine?.machineId;
     _lastTransferSuccessful = false;
     
     if (machine != null) {

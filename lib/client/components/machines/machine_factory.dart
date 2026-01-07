@@ -98,4 +98,15 @@ class MachineFactory {
         );
     }
   }
+
+  static void syncNextMachineId(String machineId) {
+    final match = RegExp(r'machine_(\d+)').firstMatch(machineId);
+    if (match == null) return;
+
+    final id = int.parse(match.group(1)!);
+    if (id >= _nextMachineId) {
+      _nextMachineId = id + 1;
+      print('🔧 Sync machine id → $_nextMachineId');
+    }
+  }
 }

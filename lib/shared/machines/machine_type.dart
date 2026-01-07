@@ -11,6 +11,10 @@ enum MachineType {
   spaceship,  // End-game victory machine
 }
 
+extension MachineTypeKey on MachineType {
+  String get key => toString().split('.').last;
+}
+
 extension MachineTypeExtension on MachineType {
   String get displayName {
     switch (this) {

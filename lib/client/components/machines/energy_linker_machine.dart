@@ -1,3 +1,4 @@
+import '../../managers/machine_registry.dart';
 import 'base_machine.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -6,8 +7,13 @@ import 'linker_visualizer.dart';
 
 /// Energy Linker - Transfers energy between machines using pull-based logic
 class EnergyLinkerMachine extends BaseMachine {
+  // Local references (fast access, no lookups)
   BaseMachine? sourceMachine;
   List<BaseMachine?> targetMachines = [null, null, null, null];
+
+  // Network-syncable IDs
+  String? sourceMachineId;
+  List<String?> targetMachineIds = [null, null, null, null];
   
   // Transfer rate: 50 NE per tick (adjustable)
   static const double energyPerTick = 50.0;
@@ -27,7 +33,24 @@ class EnergyLinkerMachine extends BaseMachine {
           game: game,
           machineId: machineId,
         );
-
+  
+  // Resolve IDs to references
+  void resolveReferences(MachineRegistry registry) {
+    if (sourceMachineId != null) {
+      sourceMachine = registry.getMachineById(sourceMachineId!);
+    } else {
+      sourceMachine = null;
+    }
+    
+    for (int i = 0; i < targetMachineIds.length; i++) {
+      if (targetMachineIds[i] != null) {
+        targetMachines[i] = registry.getMachineById(targetMachineIds[i]!);
+      } else {
+        targetMachines[i] = null;
+      }
+    }
+  }
+  
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -175,6 +198,7 @@ class EnergyLinkerMachine extends BaseMachine {
     }
     
     sourceMachine = machine;
+    sourceMachineId = machine?.machineId;
     _lastTransferSuccessful = false;
     
     if (machine != null) {
@@ -202,6 +226,7 @@ class EnergyLinkerMachine extends BaseMachine {
     }
     
     targetMachines[slot] = machine;
+    targetMachineIds[slot] = machine?.machineId;
     _lastTransferSuccessful = false;
     
     if (machine != null) {
