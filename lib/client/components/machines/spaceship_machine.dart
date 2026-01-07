@@ -7,7 +7,7 @@ import '../../../shared/resources/resource_type.dart';
 /// Spaceship - End-game victory machine
 class SpaceshipMachine extends BaseMachine {
   // Energy Cube charging
-  int energyCubesLoaded = 0;
+  // int energyCubesLoaded = 0;
   static const int requiredCubes = 20;
 
   // Energy charging (uses storedEnergy from BaseMachine)
@@ -32,6 +32,9 @@ class SpaceshipMachine extends BaseMachine {
   void operate() {
     // Spaceship is passive - doesn't operate
   }
+
+  int get energyCubesLoaded =>
+    inputStorage.getResourceQuantity(ResourceType.energyCube);
 
   /// Check if spaceship is fully charged (both conditions)
   bool get isFullyCharged => energyCubesLoaded >= requiredCubes && storedEnergy >= requiredEnergy;
@@ -64,7 +67,7 @@ class SpaceshipMachine extends BaseMachine {
     final toAdd = amount.clamp(0, spaceAvailable);
 
     if (toAdd > 0) {
-      energyCubesLoaded += toAdd;
+      inputStorage.addResource(resource, toAdd);
       print('🚀 Spaceship charged: $energyCubesLoaded / $requiredCubes Energy Cubes');
       
       if (isFullyCharged) {

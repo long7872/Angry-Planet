@@ -173,8 +173,8 @@ class MachineState {
 
       case MachineType.spaceship:
         if (machine is SpaceshipMachine) {
-          machine.energyCubesLoaded =
-              customState['energyCubesLoaded'] as int? ?? 0;
+          // machine.energyCubesLoaded =
+          //     customState['energyCubesLoaded'] as int? ?? 0;
           machine.isLaunched =
               customState['isLaunched'] as bool? ?? false;
         }

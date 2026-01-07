@@ -11,6 +11,8 @@ class NetworkMessage {
   static const String machineSync = 'machine_sync';
   static const String machineUpdate = 'machine_update';
 
+  static const String machineAction = 'machine_action';
+  static const String machineActionResult = 'machine_action_result';
   static const String machineStateSync = 'machine_state_sync';
   static const String machineStateUpdate = 'machine_state_update';
 

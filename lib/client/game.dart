@@ -256,6 +256,24 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     }));
   }
 
+  // helper to send machineAction requests (CHANGED)
+  void sendMachineAction({
+    required String action, // 'add_input' | 'take_output'
+    required String machineId,
+    required ResourceType resource,
+    required int amount,
+  }) {
+    final req = {
+      'type': NetworkMessage.machineAction,
+      'action': action,
+      'machineId': machineId,
+      'resource': resource.name,
+      'amount': amount,
+    };
+    socket.send(jsonEncode(req));
+  }
+
+
   // Setup machine network listeners
   void _setupMachineNetworkListeners() {
     socket.onMessage((message) {
@@ -297,7 +315,47 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
 
           _sendPlayerName();
         }
-        
+
+        else if (data['type'] == NetworkMessage.machineActionResult) {
+          final success = data['success'] as bool? ?? false;
+          if (!success) {
+            // Optionally show UI feedback
+            print('❌ Machine action failed: ${data['reason'] ?? 'unknown'}');
+          } else {
+            // If server included inventoryDelta, apply it
+            final invDelta = data['inventoryDelta'] as Map<String, dynamic>?;
+            if (invDelta != null) {
+              final resourceName = invDelta['resource'] as String;
+              final delta = (invDelta['amount'] as num).toInt();
+              final resource = ResourceType.values.firstWhere(
+                (r) => r.name == resourceName,
+                orElse: () => ResourceType.none,
+              );
+              if (resource != ResourceType.none) {
+                if (delta < 0) {
+                  // remove from local inventory (server accepted consumption)
+                  final removed = -delta;
+                  final ok = inventory.removeResource(resource, removed);
+                  if (!ok) {
+                    // This is a fallback: if client lacks items (shouldn't normally happen),
+                    // we still accept server authority; avoid negative inventory.
+                    print('⚠️ Local inventory had not enough to remove ${removed} ${resource.displayName}');
+                  } else {
+                    print('✅ Inventory: removed $removed ${resource.displayName} (server confirmed)');
+                  }
+                } else if (delta > 0) {
+                  inventory.addResource(resource, delta);
+                  print('✅ Inventory: added $delta ${resource.displayName} (server confirmed)');
+                }
+              }
+            }
+
+            // If server included a state snapshot, apply it instantly
+            if (data['state'] != null) {
+              _applyMachineState(data['state']);
+            }
+          }
+        }
         // Receive tick from host
         else if (data['type'] == NetworkMessage.gameTick && !isHost) {
           final hostTick = data['tick'] as int;
@@ -427,6 +485,7 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   
   // Send all machine states to server
   void _sendMachineStates() {
+    if (!isHost) return;
     final machines = machineRegistry.getAllMachines();
     
     for (final machine in machines) {
@@ -565,32 +624,34 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
         onClose: () => machineInteractionManager.closeMachineUI(),
         onTakeFromOutput: (resource, amount) {
           if (!inventory.canAddResource(resource, amount)) return false;
-
-          final taken = machine.takeFromOutput(resource, amount);
-          if (!taken) return false;
-          
-          inventory.addResource(resource, amount);
-
-          return true;
+          try {
+            sendMachineAction(
+              action: 'take_output',
+              machineId: machine.machineId,
+              resource: resource,
+              amount: amount,
+            );
+            return true; // request sent — UI treats as accepted (pending)
+          } catch (e) {
+            print('❌ sendMachineAction failed: $e');
+            return false;
+          }
         },
         onAddToInput: (resource, amount) {
           if (!inventory.hasResource(resource, amount)) return false;
-
-          final added = machine.addToInput(resource, amount);
-          if (!added) return false;
-          inventory.removeResource(resource, amount);
-          // Add from player inventory to machine input
-          // if (inventory.removeResource(resource, amount)) {
-          //   if (machine.addToInput(resource, amount)) {
-          //     return true;
-          //   } else {
-          //     // Rollback if machine input full
-          //     inventory.addResource(resource, amount);
-          //     return false;
-          //   }
-          // }
-          return true;
-        },
+          try {
+            sendMachineAction(
+              action: 'add_input',
+              machineId: machine.machineId,
+              resource: resource,
+              amount: amount,
+            );
+            return true; // request sent
+          } catch (e) {
+            print('❌ sendMachineAction failed: $e');
+            return false;
+          }
+        }
       );
     });
   }
