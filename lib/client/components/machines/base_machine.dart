@@ -39,6 +39,13 @@ abstract class BaseMachine extends SpriteComponent {
   double maxHealth = 150;
   bool isBroken = false;
 
+  bool _inventoryLocked = false;
+
+  bool get inventoryLocked => _inventoryLocked;
+
+  void lockInventory() => _inventoryLocked = true;
+  void unlockInventory() => _inventoryLocked = false;
+
   BaseMachine({
     required this.machineType,
     required this.tilePosition,
@@ -120,17 +127,29 @@ abstract class BaseMachine extends SpriteComponent {
     //   return;
     // }
 
-    isWorking = false;
+    if (_inventoryLocked) return;
+
+      _inventoryLocked = true;
+      isWorking = false;
+
+      if (!isBroken) {
+        _updatePowerStatus();
+        operate();
+      }
+
+      _inventoryLocked = false;
+
+    // isWorking = false;
 
     // Check if machine is broken
-    if (isBroken) {
-      return;  // Broken machines don't operate
-    }
+    // if (isBroken) {
+    //   return;  // Broken machines don't operate
+    // }
 
     // Update power status BEFORE operating
-    _updatePowerStatus();
+    // _updatePowerStatus();
     
-    operate();
+    // operate();
   }
 
   /// Check if machine can operate this tick
@@ -193,11 +212,13 @@ abstract class BaseMachine extends SpriteComponent {
 
   /// Add item to input storage
   bool addToInput(ResourceType resource, int amount) {
+    if (_inventoryLocked) return false;
     return inputStorage.addResource(resource, amount);
   }
 
   /// Take item from output storage
   bool takeFromOutput(ResourceType resource, int amount) {
+    if (_inventoryLocked) return false;
     return outputStorage.removeResource(resource, amount);
   }
 

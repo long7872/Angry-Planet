@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angry_planet/shared/inventory/item_stack.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/machines/machine_config.dart';
@@ -67,6 +69,29 @@ class MachineUIOverlay extends StatefulWidget {
 }
 
 class _MachineUIOverlayState extends State<MachineUIOverlay> {
+  static const Duration _uiCooldown = Duration(milliseconds: 350);
+
+  bool _isCoolingDown = false;
+  Timer? _cooldownTimer;
+
+  bool _tryBeginAction() {
+    if (_isCoolingDown) return false;
+
+    _isCoolingDown = true;
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer(_uiCooldown, () {
+      if (mounted) {
+        setState(() {
+          _isCoolingDown = false;
+        });
+      } else {
+        _isCoolingDown = false;
+      }
+    });
+
+    return true;
+  }
+  
   @override
   void initState() {
     super.initState();
@@ -1749,6 +1774,8 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
 
   /// Take items from input back to player
   void _takeFromInput(ResourceType resource, int amount, SmelterMachine smelter) {
+    if (!_tryBeginAction()) return;
+
     // Check if player has space
     if (!widget.playerInventory.canAddResource(resource, amount)) {
       final available = widget.playerInventory.getAvailableSpace(resource);
@@ -1902,15 +1929,17 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
     bool enabled,
     VoidCallback onPressed,
   ) {
+    final canTap = enabled && !_isCoolingDown;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: enabled ? onPressed : null,
+        onTap: canTap ? onPressed : null,
         borderRadius: BorderRadius.circular(6),
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: enabled ? color : Colors.grey.shade700,
+            color: canTap ? color : Colors.grey.shade700,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
@@ -1940,6 +1969,8 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
       return;
     }
 
+    if (!_tryBeginAction()) return;
+
     if (widget.playerInventory.hasResource(resource, amount)) {
       if (widget.onAddToInput(resource, amount)) {
         setState(() {});
@@ -1953,6 +1984,8 @@ class _MachineUIOverlayState extends State<MachineUIOverlay> {
   }
 
   void _takeFromStorage(ResourceType resource, int amount, HolderMachine holder) {
+    if (!_tryBeginAction()) return;
+
     if (widget.onTakeFromOutput(resource, amount)) {
       setState(() {});
       print("⬇️ Took $amount ${resource.displayName} from storage");
@@ -2549,6 +2582,8 @@ Widget _buildOutputList(List stacks) {
   }
 
   void _addToInput(ResourceType resource, int amount) {
+    if (!_tryBeginAction()) return;
+
     // Add items from player inventory to machine input
     if (widget.playerInventory.hasResource(resource, amount)) {
       if (widget.onAddToInput(resource, amount)) {
@@ -2563,6 +2598,8 @@ Widget _buildOutputList(List stacks) {
   }
 
   void _takeFromOutput(ResourceType resource, int amount) {
+    if (!_tryBeginAction()) return;
+
     // Take items from machine output to player inventory
     if (widget.onTakeFromOutput(resource, amount)) {
       setState(() {});
@@ -2587,5 +2624,11 @@ Widget _buildOutputList(List stacks) {
         style: TextStyle(fontSize: 20, color: Colors.white),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
   }
 }

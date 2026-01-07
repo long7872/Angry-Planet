@@ -33,8 +33,8 @@ class MachineState {
     machine.storedEnergy = (json['storedEnergy'] as num?)?.toDouble() ?? 0;
     machine.health = (json['health'] as num?)?.toDouble() ?? 150;
     machine.isBroken = json['isBroken'] as bool? ?? false;
-    machine.isWorking = json['isWorking'] as bool? ?? false;
-    machine.isPowered = json['isPowered'] as bool? ?? false;
+    // machine.isWorking = json['isWorking'] as bool? ?? false;
+    // machine.isPowered = json['isPowered'] as bool? ?? false;
     
     // Apply storage
     if (json['inputStorage'] != null) {

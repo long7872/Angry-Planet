@@ -564,30 +564,32 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
         machineRegistry: machineRegistry,
         onClose: () => machineInteractionManager.closeMachineUI(),
         onTakeFromOutput: (resource, amount) {
-          // Take from machine output to player inventory
-          // if (machine.outputStorage.removeResource(resource, amount)) {
-          //   inventory.addResource(resource, amount);
-          //   return true;
-          // }
-          // return false;
-          if (machine.takeFromOutput(resource, amount)) {
-            inventory.addResource(resource, amount);
-            return true;
-          }
-          return false;
+          if (!inventory.canAddResource(resource, amount)) return false;
+
+          final taken = machine.takeFromOutput(resource, amount);
+          if (!taken) return false;
+          
+          inventory.addResource(resource, amount);
+
+          return true;
         },
         onAddToInput: (resource, amount) {
+          if (!inventory.hasResource(resource, amount)) return false;
+
+          final added = machine.addToInput(resource, amount);
+          if (!added) return false;
+          inventory.removeResource(resource, amount);
           // Add from player inventory to machine input
-          if (inventory.removeResource(resource, amount)) {
-            if (machine.addToInput(resource, amount)) {
-              return true;
-            } else {
-              // Rollback if machine input full
-              inventory.addResource(resource, amount);
-              return false;
-            }
-          }
-          return false;
+          // if (inventory.removeResource(resource, amount)) {
+          //   if (machine.addToInput(resource, amount)) {
+          //     return true;
+          //   } else {
+          //     // Rollback if machine input full
+          //     inventory.addResource(resource, amount);
+          //     return false;
+          //   }
+          // }
+          return true;
         },
       );
     });
