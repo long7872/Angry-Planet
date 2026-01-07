@@ -188,6 +188,13 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       }
     };
 
+    gameManager.onEventBroadcast = (payload) {
+      if (isHost) {
+        // payload is Map<String,dynamic> as prepared in GameManager
+        socket.send(jsonEncode(payload));
+      }
+    };
+
     // Initialize inventory with starting resources
     inventory = Inventory(
       maxSlots: 50,        // 50 different item types
@@ -301,6 +308,19 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
           }
         }
         
+        else if (data['type'] == 'game_event') {
+          final event = data['event'] as String?;
+          if (event == 'acidRain') {
+            // Host started acid rain, client should set local event state (no tick)
+            final duration = (data['duration'] as num).toDouble();
+            gameManager.acidRainEvent.start(duration: duration);
+            // Optionally set maxDuration if your start(duration:) doesn't set it
+          } else if (event == 'acidRainStop') {
+            // ensure client clears visuals
+            gameManager.acidRainEvent.stop();
+          }
+        }
+
         // Handle single state update
         else if (data['type'] == NetworkMessage.machineStateUpdate) {
           _applyMachineState(data['state']);

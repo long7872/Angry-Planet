@@ -497,23 +497,23 @@ class AngryPlanetServer {
   }
 
   // Broadcast single machine state update (from client)
-  void _broadcastMachineStateUpdateFromClient(String fromPlayerId, String machineId, Map<String, dynamic> state) {
-    final message = jsonEncode({
-      'type': NetworkMessage.machineStateUpdate,
-      'id': machineId,
-      'state': state,
-    });
+  // void _broadcastMachineStateUpdateFromClient(String fromPlayerId, String machineId, Map<String, dynamic> state) {
+  //   final message = jsonEncode({
+  //     'type': NetworkMessage.machineStateUpdate,
+  //     'id': machineId,
+  //     'state': state,
+  //   });
 
-    for (final p in _players.values) {
-      if (p.id != fromPlayerId) {
-        try {
-          p.socket.add(message);
-        } catch (e) {
-          // Ignore
-        }
-      }
-    }
-  }
+  //   for (final p in _players.values) {
+  //     if (p.id != fromPlayerId) {
+  //       try {
+  //         p.socket.add(message);
+  //       } catch (e) {
+  //         // Ignore
+  //       }
+  //     }
+  //   }
+  // }
 
   // Broadcast game tick from host to other players
   void _broadcastGameTick(String fromPlayerId, int tick) {

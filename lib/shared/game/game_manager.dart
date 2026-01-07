@@ -1,7 +1,10 @@
+// lib/shared/game/game_manager.dart
 import 'dart:math';
 
-import 'package:flame/components.dart';  // ADD THIS
-import '../machines/machine_type.dart';
+import 'package:angry_planet/shared/machines/machine_type.dart';
+import 'package:flame/components.dart';
+import 'package:flame/game.dart';
+
 import 'acid_rain_event.dart';
 import 'game_tick.dart';
 import 'energy_system.dart';
@@ -10,18 +13,22 @@ import '../../client/managers/machine_registry.dart';
 import '../../client/components/machines/base_machine.dart';
 
 /// Main game manager - coordinates all systems
-class GameManager extends Component {  // EXTEND Component
+class GameManager extends Component {
   final GameTick gameTick = GameTick();
   final EnergyNetwork energyNetwork = EnergyNetwork();
   final PollutionSystem pollutionSystem = PollutionSystem();
   final AcidRainEvent acidRainEvent = AcidRainEvent();
 
   final Random _random = Random();
-  
+
   MachineRegistry? _machineRegistry;
 
-  bool isHost = false; 
+  bool isHost = false;
   Function()? onTickBroadcast;
+
+  /// New: event broadcast callback. Host should set this to send JSON to server / clients.
+  /// Example: onEventBroadcast = (payload) => socket.send(jsonEncode(payload));
+  void Function(Map<String, dynamic> payload)? onEventBroadcast;
 
   /// Register machine registry
   void registerMachineRegistry(MachineRegistry registry) {
@@ -31,16 +38,16 @@ class GameManager extends Component {  // EXTEND Component
 
   @override
   void update(double dt) {
-    super.update(dt);  // Call super
+    super.update(dt);
 
     // Only host runs automatic ticks
     if (!isHost) return;
-    
+
     // Check if we should execute a tick
     if (gameTick.update(dt)) {
       onTick();
 
-      // Broadcast tick to other players
+      // Broadcast tick to other players (existing behavior)
       if (onTickBroadcast != null) {
         onTickBroadcast!();
       }
@@ -51,8 +58,8 @@ class GameManager extends Component {  // EXTEND Component
   void executeHostTick(int hostTickCount) {
     // Sync our tick count to host
     gameTick.setTickCount(hostTickCount);
-    
-    // Execute the tick
+
+    // Execute the tick (clients will NOT run host-only event/damage logic)
     onTick();
   }
 
@@ -71,33 +78,70 @@ class GameManager extends Component {  // EXTEND Component
     // 3. Update pollution
     pollutionSystem.tick();
 
-    // 4. Check for acid rain event
-    _checkAcidRainEvent();
-    
-    // 5. Update acid rain
-    final machines = _machineRegistry!.getAllMachines();
-    acidRainEvent.tick(machines);
+    // 4. Host-only: check + run acid rain event / damage
+    if (isHost) {
+      _checkAcidRainEvent();
 
-    // 6. Log stats
+      // Keep track to broadcast stop when it ends
+      final wasActiveBefore = acidRainEvent.isActive;
+
+      acidRainEvent.tick(_machineRegistry!.getAllMachines());
+
+      // If event ended during tick, broadcast stop
+      if (wasActiveBefore && !acidRainEvent.isActive) {
+        _broadcastEventStop();
+      }
+    }
+
+    // 5. Log stats
     _logStats();
   }
 
-  /// Check if acid rain should start
+  /// Check if acid rain should start (host only)
   void _checkAcidRainEvent() {
-    // Only start if not already active
+    // Only start if not already active and not on cooldown
     if (acidRainEvent.isActive) return;
     if (acidRainEvent.isOnCooldown) return;
-    
+
     final pollutionStats = pollutionSystem.getStats();
     final pollutionPercentage = pollutionStats.percentage;
 
-    // Only trigger if pollution is high enough
-    // if (pollutionPercentage < 40) return;
+    // Example: scale trigger chance with pollution
+    // base 1% + up to 9% when pollution very high
+    final triggerChance = 0.01 + (pollutionPercentage / 100) * 0.09;
 
-    // 5% chance per tick to trigger event
-    const triggerChance = 0.05;  // 5%
     if (_random.nextDouble() < triggerChance) {
-      acidRainEvent.start(pollutionPercentage);
+      // Start event (decide duration from pollution)
+      final started = acidRainEvent.start(pollutionPercentage: pollutionPercentage);
+      if (started) {
+        // Broadcast to clients the event start with chosen duration
+        _broadcastEventStart(acidRainEvent.maxDuration);
+      }
+    }
+  }
+
+  /// Broadcast an event start to clients (host should implement onEventBroadcast)
+  void _broadcastEventStart(double duration) {
+    if (onEventBroadcast != null) {
+      final payload = {
+        'type': 'game_event',
+        'event': 'acidRain',
+        'duration': duration,
+      };
+      onEventBroadcast!(payload);
+      print('📡 Broadcasted event start: acidRain ${duration}s');
+    }
+  }
+
+  /// Broadcast event stop to clients
+  void _broadcastEventStop() {
+    if (onEventBroadcast != null) {
+      final payload = {
+        'type': 'game_event',
+        'event': 'acidRainStop',
+      };
+      onEventBroadcast!(payload);
+      print('📡 Broadcasted event stop: acidRainStop');
     }
   }
 
@@ -107,11 +151,10 @@ class GameManager extends Component {  // EXTEND Component
 
     print('⚡ Energy: ${energyStats.production.toStringAsFixed(1)}P / ${energyStats.consumption.toStringAsFixed(1)}C NE/s | ${energyStats.net >= 0 ? "✓" : "✗"} Net: ${energyStats.net.toStringAsFixed(1)} | Powered: ${energyStats.activeNodes}/${energyStats.totalNodes}');
     print('☣️  Pollution: ${pollutionStats.current.toStringAsFixed(0)} / ${pollutionStats.max.toStringAsFixed(0)} (${pollutionStats.percentage.toStringAsFixed(1)}%) | ${pollutionStats.level.displayName} | +${pollutionStats.production.toStringAsFixed(1)} -${pollutionStats.reduction.toStringAsFixed(1)}');
-    // Log acid rain status
+
     if (acidRainEvent.isActive) {
       print('☔ ACID RAIN ACTIVE! ${acidRainEvent.duration.toInt()}s remaining');
     } else if (acidRainEvent.isOnCooldown) {
-      // Show cooldown status (optional, only every 10 ticks to avoid spam)
       if (gameTick.tickCount % 10 == 0) {
         print('☔ Acid rain cooldown: ${acidRainEvent.cooldownRemaining.toInt()}s remaining');
       }
@@ -136,14 +179,12 @@ class GameManager extends Component {  // EXTEND Component
     // Register pollution source
     if (machine.stats.pollutionRate != 0) {
       pollutionSystem.registerSource(machine.machineId, machine);
-
       final rate = machine.stats.pollutionRate;
       if (rate > 0) {
         print('☣️  Registered pollution source: ${machine.machineType.displayName} (+${rate.toStringAsFixed(1)}/s)');
       } else {
         print('☣️  Registered pollution cleaner: ${machine.machineType.displayName} (${rate.toStringAsFixed(1)}/s)');
       }
-      
     }
   }
 
@@ -154,22 +195,15 @@ class GameManager extends Component {  // EXTEND Component
     print('🗑️  Unregistered machine: ${machine.machineType.displayName}');
   }
 
-  /// Unregister machine from systems
-  // void unregisterMachine(String machineId) {
-  //   energyNetwork.unregisterNode(machineId);
-  //   pollutionSystem.unregisterSource(machineId);
-  //   print('🔌 Machine unregistered: $machineId');
-  // }
-
   /// Get energy priority for machine type
   int _getEnergyPriority(BaseMachine machine) {
     // Lower number = higher priority
-    if (machine.stats.isGenerator) return 0;  // Generators first
-    if (machine.machineType.name.contains('smelter')) return 10;  // Processors
+    if (machine.stats.isGenerator) return 0; // Generators first
+    if (machine.machineType.name.contains('smelter')) return 10; // Processors
     if (machine.machineType.name.contains('digger')) return 10;
     if (machine.machineType.name.contains('chopper')) return 10;
-    if (machine.machineType.name.contains('holder')) return 30;  // Storage
-    if (machine.machineType.name.contains('linker')) return 40;  // Linkers last
+    if (machine.machineType.name.contains('holder')) return 30; // Storage
+    if (machine.machineType.name.contains('linker')) return 40; // Linkers last
     return 50;
   }
 
@@ -177,7 +211,7 @@ class GameManager extends Component {  // EXTEND Component
   GameStats getGameStats() {
     final energyStats = energyNetwork.getStats();
     final pollutionStats = pollutionSystem.getStats();
-    
+
     return GameStats(
       tickCount: gameTick.tickCount,
       energyStats: energyStats,
