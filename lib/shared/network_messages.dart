@@ -1,9 +1,15 @@
 class NetworkMessage {
+  static const String setPlayerName = 'set_player_name';
   static const String playerJoined = 'player_joined';
   static const String playerUpdate = 'player_update';
   static const String positionSync = 'position_sync';
   static const String getChunk = 'get_chunk';
   static const String chunkData = 'chunk_data';
+
+  static const String machinePlace = 'machine_place';
+  static const String machineDestroy = 'machine_destroy';
+  static const String machineSync = 'machine_sync';
+  static const String machineUpdate = 'machine_update';
 }
 
 class PlayerUpdateMessage {

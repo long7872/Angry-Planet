@@ -6,6 +6,7 @@ import '../components/machines/base_machine.dart';
 /// Tracks all placed machines on the map
 class MachineRegistry extends Component {
   final Map<String, BaseMachine> _placedMachines = {};
+  final Map<String, BaseMachine> _machinesById = {};
   final GameManager gameManager;
 
   MachineRegistry({required this.gameManager});
@@ -20,11 +21,12 @@ class MachineRegistry extends Component {
   void registerMachine(Vector2 tilePos, BaseMachine machine) {
     final key = _tileKey(tilePos);
     _placedMachines[key] = machine;
+    _machinesById[machine.machineId] = machine;
     
     // Register with game manager (energy + pollution)
     gameManager.registerMachine(machine);
     
-    print('🏭 Registered ${machine.machineType.displayName} at $tilePos (ID: ${machine.machineId})');
+    print('Registered ${machine.machineType.displayName} at $tilePos (ID: ${machine.machineId})');
   }
 
   /// Unregister machine
@@ -32,10 +34,29 @@ class MachineRegistry extends Component {
     final key = _tileKey(tilePos);
     final machine = _placedMachines.remove(key);
     if (machine != null) {
+      _machinesById.remove(machine.machineId);
       // Unregister from game manager
       gameManager.unregisterMachine(machine);
       print('🗑️ Unregistered ${machine.machineType.displayName} from $tilePos');
     }
+  }
+
+  // void createMachine(BaseMachine machine)
+
+  /// Remove machine directly (used for network sync)
+  void removeMachine(BaseMachine machine) {
+    // Remove from both maps
+    final key = _tileKey(machine.tilePosition);
+    _placedMachines.remove(key);
+    _machinesById.remove(machine.machineId);
+    
+    // Remove from game world
+    machine.removeFromParent();
+    
+    // Unregister from game systems
+    gameManager.unregisterMachine(machine);
+    
+    print('🗑️ Machine removed: ${machine.machineType.displayName} at ${machine.tilePosition}');
   }
 
   /// Check if machine exists at tile
@@ -46,6 +67,11 @@ class MachineRegistry extends Component {
   /// Get machine at tile
   BaseMachine? getMachineAt(Vector2 tilePos) {
     return _placedMachines[_tileKey(tilePos)];
+  }
+
+  /// Get machine by ID (for network sync)
+  BaseMachine? getMachineById(String machineId) {
+    return _machinesById[machineId];
   }
 
   /// Get all machines
@@ -80,6 +106,7 @@ class MachineRegistry extends Component {
       gameManager.unregisterMachine(machine);
     }
     _placedMachines.clear();
+    _machinesById.clear();
   }
 
   String _tileKey(Vector2 tilePos) {

@@ -1,3 +1,4 @@
+import 'package:angry_planet/client/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
@@ -26,7 +27,7 @@ enum PlacementState {
 class PlacementStateManager extends Component {
   final ClientWorld world;
   final Inventory inventory;
-  final FlameGame game;
+  final AngryPlanetGame game;
   final MachineRegistry machineRegistry;
 
   PlacementState currentState = PlacementState.idle;
@@ -483,8 +484,11 @@ class PlacementStateManager extends Component {
     
     // Register in machine registry
     machineRegistry.registerMachine(tilePos, machine);
+
+    // Send to server
+    game.sendMachinePlacement(machine);
     
-    print("🏗️ Placed ${getMachineStats(machineType).type.displayName} at $tilePos");
+    print("Placed ${getMachineStats(machineType).type.displayName} at $tilePos");
   }
 
   // Add this method at the end of the class

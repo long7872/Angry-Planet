@@ -134,6 +134,13 @@ class GameManager extends Component {  // ✓ EXTEND Component
     print('🗑️  Unregistered machine: ${machine.machineType.displayName}');
   }
 
+  /// Unregister machine from systems
+  // void unregisterMachine(String machineId) {
+  //   energyNetwork.unregisterNode(machineId);
+  //   pollutionSystem.unregisterSource(machineId);
+  //   print('🔌 Machine unregistered: $machineId');
+  // }
+
   /// Get energy priority for machine type
   int _getEnergyPriority(BaseMachine machine) {
     // Lower number = higher priority

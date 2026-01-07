@@ -31,11 +31,11 @@ class ChunkLoader extends Component {
     print("📦 ChunkLoader mounted");
     
     wsClient.onMessage((data) {
-      print("📨 Raw message received (${data.length} bytes)");
+      // print("📨 Raw message received (${data.length} bytes)");
       
       try {
         final msg = jsonDecode(data);
-        print("📨 Message type: ${msg['type']}");
+        // print("📨 Message type: ${msg['type']}");
         
         if (msg['type'] == 'chunk_data') {
           print("✅ Received chunk_data!");

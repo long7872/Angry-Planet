@@ -23,7 +23,7 @@ class ClientSocket {
       _socket!.listen(
         (data) {
           final message = data.toString();
-          print("📨 Raw message received (${message.length} bytes)");
+          // print("📨 Raw message received (${message.length} bytes)");
           
           // Notify all registered handlers
           for (final handler in _messageHandlers) {

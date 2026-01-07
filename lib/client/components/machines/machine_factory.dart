@@ -24,8 +24,10 @@ class MachineFactory {
     required Vector2 tilePosition,
     required FlameGame game,
     ResourceType? resourceNode,  // For digger
+    String? rMachineId,
   }) {
-    final machineId = 'machine_${_nextMachineId++}';
+    final machineId = rMachineId ?? 'machine_${_nextMachineId++}';
+    // final machineId = 'machine_${_nextMachineId++}';
 
     switch (type) {
       case MachineType.burner:

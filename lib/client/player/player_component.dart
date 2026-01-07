@@ -211,20 +211,22 @@ class PlayerComponent extends PositionComponent {
           fontSize: 10,
           fontWeight: FontWeight.bold,
           shadows: [
-            Shadow(color: Colors.black, blurRadius: 3, offset: Offset(1, 1)),
+            Shadow(
+              color: Colors.black,
+              blurRadius: 3,
+              offset: Offset(1, 1),
+            ),
           ],
         ),
       ),
       textDirection: ui.TextDirection.ltr,
-    );
+      textAlign: TextAlign.center,
+    )..layout();
 
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        textPainter.width / 2 - 2,                    // Center horizontally
-        - playerSize / 2,  // Just above sprite (2px gap)
-      ),
-    );
+    // 👉 Center X, place just above head
+    final x = (size.x - textPainter.width) / 2;
+    final y = -textPainter.height - 2; // 2px gap above sprite
+
+    textPainter.paint(canvas, Offset(x, y));
   }
 }

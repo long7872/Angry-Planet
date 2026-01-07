@@ -1,11 +1,16 @@
+import 'dart:convert';
+
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../shared/inventory/inventory.dart';
 import '../shared/machines/machine_type.dart';
+import '../shared/network_messages.dart';
 import '../shared/resources/resource_type.dart';
 import '../shared/game/game_manager.dart';
+import 'components/machines/base_machine.dart';
+import 'components/machines/machine_factory.dart';
 import 'managers/collision_manager.dart';
 import 'managers/machine_interaction_manager.dart';
 import 'managers/machine_repair_manager.dart';
@@ -30,6 +35,7 @@ import '../shared/player_data.dart';
 
 class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final ClientSocket socket;
+  final String playerName;
   late final ClientWorld cworld;
   late final CameraController cameraController;
   late final ChunkLoader chunkLoader;
@@ -49,7 +55,10 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
   late final PlayerComponent localPlayer;
   late final PlayerInputHandler inputHandler;
 
-  AngryPlanetGame(this.socket);
+  AngryPlanetGame(
+    this.socket, {
+    this.playerName = "Player",
+  });
 
   @override
   Future<void> onLoad() async {
@@ -93,8 +102,11 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       id: 'local',
       x: 0,
       y: 0,
-      name: 'You',
+      name: playerName,
     );
+
+    _sendPlayerName();
+    
     localPlayer = PlayerComponent(
       data: playerData,
       game: this,
@@ -123,6 +135,8 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
       game: this,
     );
     await add(multiplayerManager);
+
+    _setupMachineNetworkListeners();
 
     // Camera controller
     cameraController = CameraController(
@@ -194,6 +208,105 @@ class AngryPlanetGame extends FlameGame with TapCallbacks {
     overlays.add('hud');
 
     print("✅ Game loaded with all systems!");
+  }
+
+  // Send player name to server
+  void _sendPlayerName() {
+    socket.send(jsonEncode({
+      'type': 'set_player_name',
+      'name': playerName,
+    }));
+  }
+
+  // ✓ ADD: Setup machine network listeners
+  void _setupMachineNetworkListeners() {
+    socket.onMessage((message) {
+      try {
+        final data = jsonDecode(message);
+        
+        if (data['type'] == NetworkMessage.machinePlace) {
+          _handleRemoteMachinePlace(data['machine']);
+        }
+        else if (data['type'] == NetworkMessage.machineDestroy) {
+          _handleRemoteMachineDestroy(data['id']);
+        }
+        else if (data['type'] == NetworkMessage.machineSync) {
+          // Initial sync of existing machines
+          final machines = data['machines'] as List;
+          for (final machineData in machines) {
+            _handleRemoteMachinePlace(machineData);
+          }
+        }
+      } catch (e) {
+        print('❌ Error handling machine message: $e');
+      }
+    });
+  }
+
+  // Handle remote machine placement
+  void _handleRemoteMachinePlace(Map<String, dynamic> machineData) {
+    final machineType = MachineType.values.firstWhere(
+      (t) => t.name == machineData['type'],
+      orElse: () => MachineType.burner,
+    );
+    
+    final tilePos = Vector2(
+      (machineData['x'] as num).toDouble(),
+      (machineData['y'] as num).toDouble(),
+    );
+    
+    final machineId = machineData['id'] as String;
+
+    // Avoid duplicate
+    if (machineRegistry.getMachineById(machineId) != null) {
+      print('⚠️ Machine already exists: $machineId');
+      return;
+    }
+    
+    print('📡 Received remote machine: $machineType at $tilePos');
+
+    
+    // Create machine on client
+    final machine = MachineFactory.createMachine(
+      type: machineType,
+      tilePosition: tilePos,
+      game: this,
+      rMachineId: machineId,
+    );
+
+    cworld.add(machine);
+    machineRegistry.registerMachine(tilePos, machine);
+
+    print('📡 Remote machine placed: $machineType at $tilePos');
+  }
+
+  // Handle remote machine destruction
+  void _handleRemoteMachineDestroy(String machineId) {
+    print('📡 Received remote machine destroy: $machineId');
+    
+    final machine = machineRegistry.getMachineById(machineId);
+    if (machine != null) {
+      machineRegistry.removeMachine(machine);
+    }
+  }
+
+  // Send machine placement to server
+  void sendMachinePlacement(BaseMachine machine) {
+    socket.send(jsonEncode({
+      'type': NetworkMessage.machinePlace,
+      'id': machine.machineId,
+      'machineType': machine.machineType.name,
+      'x': machine.tilePosition.x,
+      'y': machine.tilePosition.y,
+    }));
+  }
+
+  // Send machine destruction to server
+  void sendMachineDestruction(String machineId) {
+    socket.send(jsonEncode({
+      'type': NetworkMessage.machineDestroy,
+      'id': machineId,
+    }));
   }
 
   void _giveStartingResources() {

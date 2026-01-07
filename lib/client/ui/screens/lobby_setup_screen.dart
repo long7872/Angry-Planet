@@ -15,7 +15,8 @@ class LobbySetupScreen extends StatefulWidget {
 }
 
 class _LobbySetupScreenState extends State<LobbySetupScreen> {
-  late TextEditingController _ipController;  // ✓ CHANGED: Now a controller
+  late TextEditingController _nameController;  // ✓ NEW
+  late TextEditingController _ipController;
   late TextEditingController _portController;
   late TextEditingController _seedController;
   bool _isLoading = true;
@@ -25,7 +26,11 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
   void initState() {
     super.initState();
     
-    // ✓ NEW: IP controller
+    // ✓ NEW: Generate random player name
+    final randomNumber = Random().nextInt(9999);
+    _nameController = TextEditingController(text: 'Player_$randomNumber');
+    
+    // IP controller
     _ipController = TextEditingController(text: 'Loading...');
     
     // Generate random port between 8000-9000
@@ -112,14 +117,14 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
       }
       
       setState(() {
-        _ipController.text = bestIP ?? '127.0.0.1';  // ✓ Set controller text
+        _ipController.text = bestIP ?? '127.0.0.1';
         _isLoading = false;
       });
       
       print('✅ Selected: ${_ipController.text}');
     } catch (e) {
       setState(() {
-        _ipController.text = '127.0.0.1';  // ✓ Set controller text
+        _ipController.text = '127.0.0.1';
         _isLoading = false;
       });
       print('❌ Error: $e');
@@ -128,7 +133,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
 
   @override
   void dispose() {
-    _ipController.dispose();  // ✓ NEW
+    _nameController.dispose();  // ✓ NEW
+    _ipController.dispose();
     _portController.dispose();
     _seedController.dispose();
     super.dispose();
@@ -142,23 +148,34 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
     });
 
     try {
-      final ip = _ipController.text.trim();  // ✓ Get IP from controller
+      final playerName = _nameController.text.trim();  // ✓ NEW
+      final ip = _ipController.text.trim();
       final port = int.tryParse(_portController.text) ?? 3333;
       final seed = int.tryParse(_seedController.text) ?? 0;
       
-      // ✓ Validate IP address
+      // ✓ Validate player name
+      if (playerName.isEmpty) {
+        throw Exception('Player name cannot be empty');
+      }
+      
+      if (playerName.length > 20) {
+        throw Exception('Player name too long (max 20 characters)');
+      }
+      
+      // Validate IP address
       if (ip.isEmpty || !_isValidIP(ip)) {
         throw Exception('Invalid IP address');
       }
       
       print("🚀 Starting server on port $port with seed $seed...");
+      print("👤 Player name: $playerName");
       
       // Start local server with port
       await startLocalServer(port, seed);
       await Future.delayed(Duration(seconds: 1));
 
-      print("🔌 Connecting to $ip:$port...");  // ✓ Use entered IP
-      final socket = ClientSocket("ws://$ip:$port/ws");  // ✓ Use entered IP
+      print("🔌 Connecting to $ip:$port...");
+      final socket = ClientSocket("ws://$ip:$port/ws");
       await socket.connect();
       print("✅ Connected!");
 
@@ -171,7 +188,7 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
           builder: (context) => Scaffold(
             backgroundColor: Colors.black,
             body: GameWidget(
-              game: AngryPlanetGame(socket),
+              game: AngryPlanetGame(socket, playerName: playerName),  // ✓ Pass name
             ),
           ),
         ),
@@ -194,7 +211,6 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
     }
   }
 
-  // ✓ NEW: Validate IP address format
   bool _isValidIP(String ip) {
     final parts = ip.split('.');
     if (parts.length != 4) return false;
@@ -239,6 +255,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
                         children: [
                           _buildTitle(),
                           SizedBox(height: 40),
+                          _buildNameRow(),  // ✓ NEW
+                          SizedBox(height: 20),
                           _buildIPRow(),
                           SizedBox(height: 20),
                           _buildPortRow(),
@@ -295,7 +313,85 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
     );
   }
 
-  // ✓ UPDATED: IP row is now editable
+  // ✓ NEW: Player Name Row
+  Widget _buildNameRow() {
+    return Container(
+      constraints: BoxConstraints(maxWidth: 500),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.purple.withOpacity(0.5), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person, color: Colors.purple, size: 24),
+              SizedBox(width: 10),
+              Text(
+                'Player Name',
+                style: TextStyle(
+                  color: Colors.purple,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Spacer(),
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.purple),
+                onPressed: _isStarting ? null : () {
+                  setState(() {
+                    final randomNumber = Random().nextInt(9999);
+                    _nameController.text = 'Player_$randomNumber';
+                  });
+                },
+                tooltip: 'Generate new name',
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          TextField(
+            controller: _nameController,
+            enabled: !_isStarting,
+            maxLength: 20,
+            inputFormatters: [
+              // Allow letters, numbers, underscore, hyphen
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_-]')),
+            ],
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.black12,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: Icon(Icons.edit, color: Colors.purple),
+              hintText: 'Player_1234',
+              hintStyle: TextStyle(color: Colors.white38),
+              counterText: '',  // Hide character counter
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Your display name in the game (editable)',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIPRow() {
     return Container(
       constraints: BoxConstraints(maxWidth: 500),
@@ -310,8 +406,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
         children: [
           Row(
             children: [
-              // Icon(Icons.computer, color: Colors.blue, size: 24),
-              // SizedBox(width: 10),
+              Icon(Icons.computer, color: Colors.blue, size: 24),
+              SizedBox(width: 10),
               Text(
                 'IP Address',
                 style: TextStyle(
@@ -321,7 +417,6 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
                 ),
               ),
               Spacer(),
-              // Refresh button to auto-detect again
               IconButton(
                 icon: Icon(Icons.refresh, color: Colors.blue),
                 onPressed: _isStarting ? null : () {
@@ -336,13 +431,11 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
             ],
           ),
           SizedBox(height: 12),
-          // ✓ CHANGED: Now editable TextField
           TextField(
             controller: _ipController,
             enabled: !_isStarting && !_isLoading,
             keyboardType: TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              // Allow numbers and dots only
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
             ],
             style: TextStyle(
@@ -377,7 +470,7 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            'Your device or host IP address (editable)',  // ✓ CHANGED
+            'Your device or host IP address (editable)',
             style: TextStyle(
               color: Colors.white54,
               fontSize: 12,
@@ -403,8 +496,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
         children: [
           Row(
             children: [
-              // Icon(Icons.settings_ethernet, color: Colors.orange, size: 24),
-              // SizedBox(width: 10),
+              Icon(Icons.settings_ethernet, color: Colors.orange, size: 24),
+              SizedBox(width: 10),
               Text(
                 'Server Port',
                 style: TextStyle(
@@ -470,8 +563,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
         children: [
           Row(
             children: [
-              // Icon(Icons.terrain, color: Colors.green, size: 24),
-              // SizedBox(width: 10),
+              Icon(Icons.terrain, color: Colors.green, size: 24),
+              SizedBox(width: 10),
               Text(
                 'World Seed',
                 style: TextStyle(
@@ -588,8 +681,8 @@ class _LobbySetupScreenState extends State<LobbySetupScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Icon(Icons.rocket_launch, color: Colors.white, size: 32),
-                        // SizedBox(width: 12),
+                        Icon(Icons.rocket_launch, color: Colors.white, size: 32),
+                        SizedBox(width: 12),
                         Text(
                           'START GAME',
                           style: TextStyle(
